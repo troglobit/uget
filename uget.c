@@ -117,11 +117,8 @@ static int get(int sd, struct uget *ctx)
 
 	len = snprintf(buf, sizeof(buf), "GET /%s HTTP/1.1\r\n"
 		       "Host: %s\r\n"
-		       "Cache-Control: no-cache\r\n"
-		       "Connection: close\r\n"
-		       "Pragma: no-cache\r\n"
-		       "Accept: text/xml, application/xml\r\n"
 		       "User-Agent: " PACKAGE_NAME "/" PACAKGE_VERSION "\r\n"
+		       "Accept: */*\r\n"
 		       "\r\n",
 		       ctx->location, ctx->server);
 	dbg("Sending request to %s:%d for /%s", ctx->host, ctx->port, ctx->location);
