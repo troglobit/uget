@@ -29,7 +29,8 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 
-#define dbg(fmt, args...) if (debug) warnx(fmt, ##args)
+#define dbg(fmt, args...) if (verbose > 1) printf(fmt "\n", ##args)
+#define vrb(fmt, args...) if (verbose > 0) printf(fmt "\n", ##args)
 
 struct uget {
 	char     *server;
@@ -39,7 +40,27 @@ struct uget {
 	char      host[20];
 };
 
-static int debug;
+static int verbose;
+
+static void vrbuf(char *buf, char *prefix)
+{
+	char *ptr = buf;
+
+	if (!verbose || !ptr)
+		return;
+
+	while (*ptr) {
+		fputs(prefix, stdout);
+		while (*ptr && *ptr != '\r')
+			putchar(*ptr++);
+
+		if (!strncmp(ptr, "\r\n", 2)) {
+			ptr += 2;
+			puts("");
+		} else
+			break;
+	}
+}
 
 static int split(char *url, struct uget *ctx)
 {
@@ -80,7 +101,7 @@ static int split(char *url, struct uget *ctx)
 	if (!ctx->server)
 		return 1;
 
-	dbg("Parsed URL: FROM %s PORT %d GET /%s", ctx->server, ctx->port, ctx->location);
+	dbg("* Parsed URL: FROM %s PORT %d GET /%s", ctx->server, ctx->port, ctx->location);
 
 	return 0;
 }
@@ -121,8 +142,7 @@ static int get(int sd, struct uget *ctx)
 		       "Accept: */*\r\n"
 		       "\r\n",
 		       ctx->location, ctx->server);
-	dbg("Sending request to %s:%d for /%s", ctx->host, ctx->port, ctx->location);
-	dbg("HTTP request: %s", buf);
+	vrbuf(buf, "> ");
 
 	num = send(sd, buf, len, 0);
 	if (num < 0) {
@@ -155,16 +175,20 @@ static int hello(struct addrinfo *ai, struct uget *ctx)
 		if (sd == -1)
 			continue;
 
+		sin = (struct sockaddr_in *)rp->ai_addr;
+		inet_ntop(rp->ai_family, &sin->sin_addr, ctx->host, sizeof(ctx->host));
+		vrb("* Trying %s:%d ...", ctx->host, ntohs(sin->sin_port));
+
 		/* Attempt to adjust recv timeout */
 		if (setsockopt(sd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) < 0)
 			warn("Failed setting recv() timeout");
+		else
+			vrb("* SO_RCVTIMEO %ld.%ld sec set", timeout.tv_sec, timeout.tv_usec / 1000);
 
 		/* Attempt to connect to this address:port */
 		if (connect(sd, rp->ai_addr, rp->ai_addrlen) != -1)
 			break;	/* Success */
 
-		sin = (struct sockaddr_in *)rp->ai_addr;
-		inet_ntop(AF_INET, &sin->sin_addr, ctx->host, sizeof(ctx->host));
 		warn("Failed connecting to %s:%d", ctx->host, ntohs(sin->sin_port));
 
 		close(sd);
@@ -173,8 +197,7 @@ static int hello(struct addrinfo *ai, struct uget *ctx)
 	if (rp == NULL)
 		return -1;
 
-	sin = (struct sockaddr_in *)rp->ai_addr;
-	inet_ntop(AF_INET, &sin->sin_addr, ctx->host, sizeof(ctx->host));
+	vrb("* Connected to %s (%s) port %d", ctx->server, ctx->host, ntohs(sin->sin_port));
 
 	return get(sd, ctx);
 }
@@ -241,7 +264,7 @@ static char *parse_headers(char *buf)
 		warnx("no HTTP response code");
 		return NULL;
 	}
-	dbg("HTTP response: %s", ptr);
+	vrb("< %s", ptr);
 
 	p = token(&ptr);
 	if (p)
@@ -262,7 +285,7 @@ static char *parse_headers(char *buf)
 	}
 
 	while ((ptr = bufgets(NULL)))
-		dbg("hdr: %s", ptr);
+		vrb("< %s", ptr);
 
 	return content;
 }
@@ -288,7 +311,7 @@ FILE *uget(char *url, char *buf, size_t len)
 	char *ptr;
 	int sd;
 
-	dbg("URL: %s", url);
+	dbg("* URL: %s", url);
 	if (split(url, &ctx))
 		return NULL;
 
@@ -300,7 +323,6 @@ FILE *uget(char *url, char *buf, size_t len)
 	if (-1 == sd)
 		return NULL;
 
-	dbg("Connected.");
 	if (!fetch(sd, buf, len)) {
 		warnx("no data");
 	fail:
@@ -331,7 +353,7 @@ FILE *uget(char *url, char *buf, size_t len)
 #ifndef LOCALSTATEDIR
 static int usage(void)
 {
-	printf("Usage: uget [-d] URL\n");
+	printf("Usage: uget [-v] URL\n");
 	return 0;
 }
 
@@ -345,8 +367,8 @@ int main(int argc, char *argv[])
 		return usage();
 
 	while (argv[opt][0] == '-') {
-		if (!strcmp(argv[opt], "-d")) {
-			debug = 1;
+		if (!strcmp(argv[opt], "-v")) {
+			verbose++;
 			opt++;
 		}
 	}
