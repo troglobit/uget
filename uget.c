@@ -256,7 +256,7 @@ static char *parse_headers(char *buf)
 		warnx("max header size");
 		return NULL;
 	}
-	*content = 0;
+	content[2] = 0;
 	content += 4;
 
 	ptr = bufgets(buf);
