@@ -29,26 +29,34 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 
-static void split(char *url, char **server, uint16_t *port, char **location)
+struct uget {
+	char     *server;
+	uint16_t  port;
+	char     *location;
+
+	char      host[20];
+};
+
+static int split(char *url, struct uget *ctx)
 {
 	char *ptr, *pptr;
 
 	if (!url)
-		return;
+		return 1;
 
 	ptr = strstr(url, "://");
 	if (!ptr)
 		ptr = url;
 	else
 		ptr += 3;
-	*server = ptr;
+	ctx->server = ptr;
 
 	ptr = strchr(ptr, ':');
 	if (ptr) {
 		*ptr++ = 0;
 		pptr = ptr;
 	} else {
-		ptr = *server;
+		ptr = ctx->server;
 		if (!strncmp(url, "http://", 7))
 			pptr = "80";
 		else
@@ -57,22 +65,27 @@ static void split(char *url, char **server, uint16_t *port, char **location)
 
 	ptr = strchr(ptr, '/');
 	if (!ptr)
-		return;
-
-	*ptr++ = 0;
-	*location = ptr;
+		ptr = "";
+	else
+		*ptr++ = 0;
+	ctx->location = ptr;
 
 	if (pptr)
-		*port = atoi(pptr);
+		ctx->port = atoi(pptr);
+
+	if (!ctx->server)
+		return 1;
+
+	return 0;
 }
 
-static int nslookup(char *server, uint16_t port, struct addrinfo **result)
+static int nslookup(struct uget *ctx, struct addrinfo **result)
 {
 	struct addrinfo hints;
 	char service[10];
 	int rc;
 
-	snprintf(service, sizeof(service), "%d", port);
+	snprintf(service, sizeof(service), "%d", ctx->port);
 
 	memset(&hints, 0, sizeof(struct addrinfo));
 	hints.ai_family   = AF_INET;
@@ -80,16 +93,16 @@ static int nslookup(char *server, uint16_t port, struct addrinfo **result)
 	hints.ai_flags    = 0;
 	hints.ai_protocol = 0;
 
-	rc = getaddrinfo(server, service, &hints, result);
+	rc = getaddrinfo(ctx->server, service, &hints, result);
 	if (rc) {
-		warnx("Failed looking up %s:%s: %s", server, service, gai_strerror(rc));
+		warnx("Failed looking up %s:%s: %s", ctx->server, service, gai_strerror(rc));
 		return -1;
 	}
 
 	return 0;
 }
 
-static int get(int sd, struct addrinfo *ai, char *host, uint16_t port, char *location)
+static int get(int sd, struct uget *ctx)
 {
 	struct pollfd pfd;
 	ssize_t num;
@@ -104,11 +117,11 @@ static int get(int sd, struct addrinfo *ai, char *host, uint16_t port, char *loc
 		       "Accept: text/xml, application/xml\r\n"
 		       "User-Agent: " PACKAGE_NAME "/" PACAKGE_VERSION "\r\n"
 		       "\r\n",
-		       location, host, port);
+		       ctx->location, ctx->host, ctx->port);
 
-	num = sendto(sd, buf, len, 0, ai->ai_addr, ai->ai_addrlen);
+	num = send(sd, buf, len, 0);
 	if (num < 0) {
-		warn("Failed sending HTTP GET /%s to %s:%d", location, host, port);
+		warn("Failed sending HTTP GET /%s to %s:%d", ctx->location, ctx->host, ctx->port);
 		close(sd);
 		return -1;
 	}
@@ -116,8 +129,7 @@ static int get(int sd, struct addrinfo *ai, char *host, uint16_t port, char *loc
 	pfd.fd = sd;
 	pfd.events = POLLIN;
 	if (poll(&pfd, 1, 1000) < 0) {
-		warn("Server %s: %s", host, strerror(errno));
-		freeaddrinfo(ai);
+		warn("Server %s: %s", ctx->host, strerror(errno));
 		close(sd);
 		return -1;
 	}
@@ -125,11 +137,10 @@ static int get(int sd, struct addrinfo *ai, char *host, uint16_t port, char *loc
 	return sd;
 }
 
-static int hello(struct addrinfo *ai, uint16_t port, char *location)
+static int hello(struct uget *ctx, struct addrinfo *ai)
 {
 	struct sockaddr_in *sin;
 	struct addrinfo *rp;
-	char host[20];
 	int sd;
 
 	for (rp = ai; rp != NULL; rp = rp->ai_next) {
@@ -147,8 +158,8 @@ static int hello(struct addrinfo *ai, uint16_t port, char *location)
 			break;	/* Success */
 
 		sin = (struct sockaddr_in *)rp->ai_addr;
-		inet_ntop(AF_INET, &sin->sin_addr, host, sizeof(host));
-		warn("Failed connecting to %s:%d", host, ntohs(sin->sin_port));
+		inet_ntop(AF_INET, &sin->sin_addr, ctx->host, sizeof(ctx->host));
+		warn("Failed connecting to %s:%d", ctx->host, ntohs(sin->sin_port));
 
 		close(sd);
 	}
@@ -157,51 +168,147 @@ static int hello(struct addrinfo *ai, uint16_t port, char *location)
 		return -1;
 
 	sin = (struct sockaddr_in *)rp->ai_addr;
-	inet_ntop(AF_INET, &sin->sin_addr, host, sizeof(host));
+	inet_ntop(AF_INET, &sin->sin_addr, ctx->host, sizeof(ctx->host));
 
-	return get(sd, rp, host, port, location);
+	return get(sd, ctx);
 }
 
-FILE *uget(char *url)
+static char *bufgets(char *buf)
 {
-	struct addrinfo *ai;
-	ssize_t num;
-	uint16_t port = 80;
-	FILE *fp;
-	char *server = NULL, *location = NULL;
+	static char *next = NULL;
 	char *ptr;
-	char buf[256];
-	int header = 1;
+
+	if (buf)
+		next = buf;
+	ptr = next;
+
+	if (next) {
+		char *eol = strstr(next, "\r\n");
+
+		if (eol) {
+			*eol = 0;
+			next = eol + 2;
+		} else
+			next = NULL;
+	}
+
+	return ptr;
+}
+
+static char *token(char **buf)
+{
+	char *ptr = *buf;
+	char *p;
+
+	if (!buf || !ptr)
+		return NULL;
+
+	p = strpbrk(ptr, " \t\r\n");
+	if (p) {
+		*p++ = 0;
+		*buf = p;
+	}
+
+	return ptr;
+
+}
+
+static char *parse_headers(char *buf)
+{
+	char version[8];
+	char mesg[32];
+	char *content;
+	char *ptr, *p;
+	int code = 0;
+
+	/* Find start of content */
+	content = strstr(buf, "\r\n\r\n");
+	if (!content) {
+		warnx("max header size");
+		return NULL;
+	}
+	*content = 0;
+	content += 4;
+
+	ptr = bufgets(buf);
+	if (!ptr) {
+		warnx("no HTTP response code");
+		return NULL;
+	}
+
+	p = token(&ptr);
+	if (p)
+		snprintf(version, sizeof(version), "%s", p);
+	p = token(&ptr);
+	if (p)
+		code = atoi(p);
+	if (ptr)
+		snprintf(mesg, sizeof(mesg), "%s", ptr);
+
+	switch (code) {
+	case 200:
+		break;
+	default:
+		warnx("invalid response: %d %s", code, mesg);
+		content = NULL;
+		break;
+	}
+
+	return content;
+}
+
+static char *fetch(int sd, char *buf, size_t len)
+{
+	ssize_t num;
+
+	num = recv(sd, buf, len - 1, 0);
+	if (num > 0) {
+		buf[num] = 0;
+		return buf;
+	}
+
+	return NULL;
+}
+
+FILE *uget(char *url, char *buf, size_t len)
+{
+	struct uget ctx = { 0 };
+	struct addrinfo *ai;
+	FILE *fp;
+	char *ptr;
 	int sd;
 
-	split(url, &server, &port, &location);
-	if (!server || !location)
+	if (split(url, &ctx))
 		return NULL;
 
-	if (nslookup(server, port, &ai))
+	if (nslookup(&ctx, &ai))
 		return NULL;
 
-	sd = hello(ai, port, location);
+	sd = hello(&ctx, ai);
+	freeaddrinfo(ai);
 	if (-1 == sd)
 		return NULL;
 
-	fp = tmpfile();
-	while ((num = recv(sd, buf, sizeof(buf) - 1, 0)) > 0) {
-		buf[num] = 0;
-		if (header) {
-			if (!strstr(buf, "200 OK"))
-				break;
-			ptr = strstr(buf, "\r\n\r\n");
-			if (!ptr)
-				break;
-
-			ptr += 4;
-			fputs(ptr, fp);
-			header = 0;
-			continue;
-		}
-		fputs(buf, fp);
+	if (!fetch(sd, buf, len)) {
+		warnx("no data");
+	fail:
+		shutdown(sd, SHUT_RDWR);
+		close(sd);
+		return NULL;
 	}
+
+	ptr = parse_headers(buf);
+	if (!ptr)
+		goto fail;
+
+	fp = tmpfile();
+	if (!fp) {
+		warnx("failed creating tempfile");
+		goto fail;
+	}
+
+	do fputs(ptr, fp); while ((ptr = fetch(sd, buf, len)));
+
 	shutdown(sd, SHUT_RDWR);
 	close(sd);
 
@@ -218,17 +325,21 @@ static int usage(void)
 
 int main(int argc, char *argv[])
 {
+	char *buf;
 	FILE *fp;
-	char buf[256];
 
 	if (argc < 2)
 		return usage();
 
-	fp = uget(argv[1]);
+	buf = calloc(1, BUFSIZ);
+	if (!buf)
+		err(1, "Failed allocating  (%d bytes) receive buffer", BUFSIZ);
+
+	fp = uget(argv[1], buf, BUFSIZ);
 	if (!fp)
 		return 1;
 
-	while (fgets(buf, sizeof(buf), fp))
+	while (fgets(buf, BUFSIZ, fp))
 		fputs(buf, stdout);
 	fclose(fp);
 
