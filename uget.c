@@ -29,6 +29,8 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 
+#define dbg(fmt, args...) if (debug) warnx(fmt, ##args)
+
 struct uget {
 	char     *server;
 	uint16_t  port;
@@ -36,6 +38,8 @@ struct uget {
 
 	char      host[20];
 };
+
+static int debug;
 
 static int split(char *url, struct uget *ctx)
 {
@@ -75,6 +79,8 @@ static int split(char *url, struct uget *ctx)
 
 	if (!ctx->server)
 		return 1;
+
+	dbg("Parsed URL: FROM %s PORT %d GET /%s", ctx->server, ctx->port, ctx->location);
 
 	return 0;
 }
@@ -118,6 +124,8 @@ static int get(int sd, struct uget *ctx)
 		       "User-Agent: " PACKAGE_NAME "/" PACAKGE_VERSION "\r\n"
 		       "\r\n",
 		       ctx->location, ctx->host, ctx->port);
+	dbg("Sending request to %s:%d for /%s", ctx->host, ctx->port, ctx->location);
+	dbg("HTTP request: %s", buf);
 
 	num = send(sd, buf, len, 0);
 	if (num < 0) {
@@ -154,6 +162,7 @@ static int hello(struct uget *ctx, struct addrinfo *ai)
 		if (setsockopt(sd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) < 0)
 			warn("Failed setting recv() timeout");
 
+		/* Attempt to connect to this address:port */
 		if (connect(sd, rp->ai_addr, rp->ai_addrlen) != -1)
 			break;	/* Success */
 
@@ -235,6 +244,7 @@ static char *parse_headers(char *buf)
 		warnx("no HTTP response code");
 		return NULL;
 	}
+	dbg("HTTP response: %s", ptr);
 
 	p = token(&ptr);
 	if (p)
@@ -253,6 +263,9 @@ static char *parse_headers(char *buf)
 		content = NULL;
 		break;
 	}
+
+	while ((ptr = bufgets(NULL)))
+		dbg("hdr: %s", ptr);
 
 	return content;
 }
@@ -278,6 +291,7 @@ FILE *uget(char *url, char *buf, size_t len)
 	char *ptr;
 	int sd;
 
+	dbg("URL: %s", url);
 	if (split(url, &ctx))
 		return NULL;
 
@@ -289,6 +303,7 @@ FILE *uget(char *url, char *buf, size_t len)
 	if (-1 == sd)
 		return NULL;
 
+	dbg("Connected.");
 	if (!fetch(sd, buf, len)) {
 		warnx("no data");
 	fail:
@@ -319,7 +334,7 @@ FILE *uget(char *url, char *buf, size_t len)
 #ifndef LOCALSTATEDIR
 static int usage(void)
 {
-	printf("Usage: uget URL\n");
+	printf("Usage: uget [-d] URL\n");
 	return 0;
 }
 
@@ -327,15 +342,23 @@ int main(int argc, char *argv[])
 {
 	char *buf;
 	FILE *fp;
+	int opt = 1;
 
 	if (argc < 2)
 		return usage();
+
+	while (argv[opt][0] == '-') {
+		if (!strcmp(argv[opt], "-d")) {
+			debug = 1;
+			opt++;
+		}
+	}
 
 	buf = calloc(1, BUFSIZ);
 	if (!buf)
 		err(1, "Failed allocating  (%d bytes) receive buffer", BUFSIZ);
 
-	fp = uget(argv[1], buf, BUFSIZ);
+	fp = uget(argv[opt], buf, BUFSIZ);
 	if (!fp)
 		return 1;
 
