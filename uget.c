@@ -142,7 +142,7 @@ static int get(int sd, struct uget *ctx)
 	return sd;
 }
 
-static int hello(struct uget *ctx, struct addrinfo *ai)
+static int hello(struct addrinfo *ai, struct uget *ctx)
 {
 	struct sockaddr_in *sin;
 	struct addrinfo *rp;
@@ -295,7 +295,7 @@ FILE *uget(char *url, char *buf, size_t len)
 	if (nslookup(&ctx, &ai))
 		return NULL;
 
-	sd = hello(&ctx, ai);
+	sd = hello(ai, &ctx);
 	freeaddrinfo(ai);
 	if (-1 == sd)
 		return NULL;
