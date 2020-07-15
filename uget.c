@@ -38,6 +38,9 @@ struct uget {
 	char     *location;
 
 	char      host[20];
+
+	int       redirect;
+	char      redirect_url[256];
 };
 
 static int verbose;
@@ -242,7 +245,7 @@ static char *token(char **buf)
 
 }
 
-static char *parse_headers(char *buf)
+static char *parse_headers(char *buf, struct uget *ctx)
 {
 	char version[8];
 	char mesg[32];
@@ -278,14 +281,21 @@ static char *parse_headers(char *buf)
 	switch (code) {
 	case 200:
 		break;
+	case 301:
+		ctx->redirect = 1;
+		content = NULL;
+		break;
 	default:
 		warnx("invalid response: %d %s", code, mesg);
 		content = NULL;
 		break;
 	}
 
-	while ((ptr = bufgets(NULL)))
+	while ((ptr = bufgets(NULL))) {
 		vrb("< %s", ptr);
+		if (ctx->redirect && !strncasecmp("Location: ", ptr, 10))
+			snprintf(ctx->redirect_url, sizeof(ctx->redirect_url), "%s", &ptr[10]);
+	}
 
 	return content;
 }
@@ -312,6 +322,7 @@ FILE *uget(char *url, char *buf, size_t len)
 	int sd;
 
 	dbg("* URL: %s", url);
+retry:
 	if (split(url, &ctx))
 		return NULL;
 
@@ -331,9 +342,15 @@ FILE *uget(char *url, char *buf, size_t len)
 		return NULL;
 	}
 
-	ptr = parse_headers(buf);
-	if (!ptr)
+	ptr = parse_headers(buf, &ctx);
+	if (!ptr) {
+		if (ctx.redirect) {
+			dbg("* Redirecting to %s ...", ctx.redirect_url);
+			url = ctx.redirect_url;
+			goto retry;
+		}
 		goto fail;
+	}
 
 	fp = tmpfile();
 	if (!fp) {
