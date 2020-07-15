@@ -102,7 +102,7 @@ static int get(int sd, struct addrinfo *ai, char *host, uint16_t port, char *loc
 		       "Connection: close\r\n"
 		       "Pragma: no-cache\r\n"
 		       "Accept: text/xml, application/xml\r\n"
-		       "User-Agent: ssdp-scan/1.0 UPnP/1.0\r\n"
+		       "User-Agent: " PACKAGE_NAME "/" PACAKGE_VERSION "\r\n"
 		       "\r\n",
 		       location, host, port);
 
