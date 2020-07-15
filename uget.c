@@ -370,15 +370,16 @@ retry:
 #ifndef LOCALSTATEDIR
 static int usage(void)
 {
-	printf("Usage: uget [-v] URL\n");
+	printf("Usage: uget [-v] [-o FILE] URL\n");
 	return 0;
 }
 
 int main(int argc, char *argv[])
 {
-	char *buf;
-	FILE *fp;
+	FILE *fp, *out = stdout;
+	char *buf, *fn = NULL;
 	int opt = 1;
+	int rc;
 
 	if (argc < 2)
 		return usage();
@@ -387,7 +388,17 @@ int main(int argc, char *argv[])
 		if (!strcmp(argv[opt], "-v")) {
 			verbose++;
 			opt++;
+		} else if (!strcmp(argv[opt], "-o")) {
+			opt++;
+			fn = argv[opt++];
 		}
+	}
+
+	if (fn) {
+		out = fopen(fn, "w");
+		if (!out)
+			err(1, "Failed opening output file %s", fn);
+		dbg("* Saving output to %s", fn);
 	}
 
 	buf = calloc(1, BUFSIZ);
@@ -395,13 +406,15 @@ int main(int argc, char *argv[])
 		err(1, "Failed allocating  (%d bytes) receive buffer", BUFSIZ);
 
 	fp = uget(argv[opt], buf, BUFSIZ);
-	if (!fp)
-		return 1;
+	if (fp) {
+		while (fgets(buf, BUFSIZ, fp))
+			fputs(buf, out);
+		fclose(fp);
+		rc = 0;
+	} else
+		rc = 1;
+	fclose(out);
 
-	while (fgets(buf, BUFSIZ, fp))
-		fputs(buf, stdout);
-	fclose(fp);
-
-	return 0;
+	return rc;
 }
 #endif
