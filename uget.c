@@ -142,9 +142,9 @@ static char *uget_recv(int sd, char *buf, size_t len)
 {
 	ssize_t num;
 
-	num = recv(sd, buf, len - 1, 0);
-	if (num < 0) {
-		warn("no data");
+	while ((num = recv(sd, buf, len - 1, 0)) < 0) {
+		if (errno == EINTR)
+			continue;
 		return NULL;
 	}
 	buf[num] = 0;
