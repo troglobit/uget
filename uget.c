@@ -324,7 +324,7 @@ static char *fetch(int sd, char *buf, size_t len)
 
 FILE *uget(char *cmd, char *url, char *buf, size_t len)
 {
-	struct uget ctx = { cmd };
+	struct uget ctx = { 0 };
 	struct addrinfo *ai;
 	FILE *fp;
 	char *ptr;
@@ -338,6 +338,7 @@ retry:
 	if (nslookup(&ctx, &ai))
 		return NULL;
 
+	ctx.cmd = cmd;
 	sd = hello(ai, &ctx);
 	freeaddrinfo(ai);
 	if (-1 == sd)
