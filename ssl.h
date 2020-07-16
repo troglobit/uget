@@ -15,50 +15,35 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.a
  */
 
-#ifndef UGET_H_
-#define UGET_H_
+#ifndef UGET_SSL_H_
+#define UGET_SSL_H_
 
 #include "config.h"
+#include "uget.h"
 
-#include <err.h>
-#include <errno.h>
-#include <netdb.h>
-#include <poll.h>
-#include <string.h>
-#include <stdlib.h>
-#include <stdint.h>
-#include <stdio.h>
-#include <unistd.h>
-#include <arpa/inet.h>
-#include <netinet/in.h>
-#include <sys/types.h>
-#include <sys/socket.h>
+#ifdef ENABLE_SSL
+#include <openssl/ssl.h>
+#include <openssl/err.h>
 
-#define dbg(fmt, args...) if (verbose > 1) printf(fmt "\n", ##args)
-#define vrb(fmt, args...) if (verbose > 0) printf(fmt "\n", ##args)
+int   ssl_init  (struct conn *c);
+int   ssl_exit  (struct conn *c);
 
-struct conn {
-	char     *cmd;		/* GET/HEAD/POST */
-	char     *server;
-	uint16_t  port;
-	char     *location;
+int   ssl_open  (struct conn *c);
+int   ssl_close (struct conn *c);
 
-	char      host[20];
+int   ssl_send  (struct conn *c, char *buf, size_t len);
+char *ssl_recv  (struct conn *c, char *buf, size_t len);
 
-	int       redirect;
-	char      redirect_url[256];
+#else /* fallback to trigger error */
 
-	int       sd;
-	int       content_len;
+#define ssl_init(c)
+#define ssl_exit(c)
 
-	char     *buf;		/* At least BUFSIZ xfer buffer */
-	size_t    len;
+#define ssl_open(c) -1
+#define ssl_close(c)
 
-	int       do_ssl;	/* http or https connection */
-	void     *ssl;
-	void     *ssl_ctx;
-};
+#define ssl_send(c, buf, len) -1
+#define ssl_recv(c, buf, len) NULL
 
-extern int verbose;
-
-#endif /* UGET_H_ */
+#endif /* ENABLE_SSL */
+#endif /* UGET_SSL_H_ */

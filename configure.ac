@@ -7,7 +7,49 @@ AC_CONFIG_SRCDIR([uget.c])
 AC_CONFIG_HEADER([config.h])
 AC_CONFIG_FILES([Makefile])
 
+PKG_PROG_PKG_CONFIG
+
 AC_PROG_CC
 AC_PROG_INSTALL
+
+AC_ARG_WITH(ssl,
+        AS_HELP_STRING([--without-ssl], [Disable HTTPS support, default: enabled]),,
+        [with_ssl=yes])
+
+AS_IF([test "x$with_ssl" != "xno"], [
+	PKG_CHECK_MODULES([OpenSSL], [openssl >= 1.1.1])
+	LDFLAGS="$LDFLAGS $OpenSSL_LIBS"
+	CPPFLAGS="$CPPFLAGS $OpenSSL_CFLAGS"
+	AC_CHECK_LIB([crypto], [EVP_EncryptInit], [],
+		AC_MSG_ERROR([*** Crypto library (OpenSSL) not found!]))
+	AC_CHECK_LIB([ssl], [SSL_library_init], [],
+		AC_CHECK_LIB([ssl], [OPENSSL_init_ssl], [],
+		AC_MSG_ERROR([*** SSL library (OpenSSL) not found!])))
+	AC_CHECK_HEADERS([openssl/crypto.h openssl/x509.h openssl/pem.h openssl/ssl.h openssl/tls1.h openssl/err.h], [],
+		AC_MSG_ERROR([*** Cannot find required header files!]), [
+			#include <openssl/conf.h>
+		])
+	AC_CHECK_DECLS([SSL_COMP_free_compression_methods,SSL_CTX_set_ecdh_auto], [], [], [
+		#ifdef HAVE_OPENSSL_ERR_H
+		#include <openssl/err.h>
+		#endif
+
+		#ifdef HAVE_OPENSSL_RAND_H
+		#include <openssl/rand.h>
+		#endif
+
+		#ifdef HAVE_OPENSSL_CONF_H
+		#include <openssl/conf.h>
+		#endif
+
+		#ifdef HAVE_OPENSSL_ENGINE_H
+		#include <openssl/engine.h>
+		#endif
+		#include <openssl/ssl.h>
+		#include <openssl/evp.h>
+	])
+	AC_DEFINE([ENABLE_SSL], [1], [Enable HTTPS support])
+])
+AM_CONDITIONAL([ENABLE_SSL], test "x$with_ssl" = "xyes")
 
 AC_OUTPUT

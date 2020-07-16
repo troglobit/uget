@@ -15,6 +15,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.a
  */
 
+#include "ssl.h"
 #include "uget.h"
 
 int verbose;
@@ -49,6 +50,14 @@ static int split(char *url, struct conn *c)
 	if (!url)
 		return 1;
 
+	/* Figure out protocol to use */
+	if (!strncmp(url, "http://", 7))
+		c->do_ssl = 0;
+	else if (!strncmp(url, "https://", 8))
+		c->do_ssl = 1;
+	else
+		return 1;
+
 	ptr = strstr(url, "://");
 	if (!ptr)
 		ptr = url;
@@ -61,10 +70,11 @@ static int split(char *url, struct conn *c)
 		*ptr++ = 0;
 		pptr = ptr;
 	} else {
-		if (!strncmp(url, "http://", 7))
-			pptr = "80";
-		else
+		if (c->do_ssl)
 			pptr = "443";
+		else
+			pptr = "80";
+
 		/* continue parsing here */
 		ptr = c->server;
 	}
@@ -121,6 +131,10 @@ static char *uget_recv(struct conn *c, char *buf, size_t len)
 		warn("Server %s: %s", c->host, strerror(errno));
 		return NULL;
 	}
+
+	if (c->do_ssl)
+		return ssl_recv(c, buf, len);
+
 	while ((num = recv(c->sd, buf, len - 1, 0)) < 0) {
 		if (errno == EINTR)
 			continue;
@@ -137,6 +151,9 @@ static char *uget_recv(struct conn *c, char *buf, size_t len)
 static int uget_send(struct conn *c, char *buf, size_t len)
 {
 	ssize_t num;
+
+	if (c->do_ssl)
+		return ssl_send(c, buf, len);
 
 	while ((num = send(c->sd, buf, len, 0)) < 0) {
 		if (errno == EINTR)
@@ -189,7 +206,14 @@ static int hello(struct addrinfo *ai, struct conn *c)
 		vrb("* Trying %s:%d ...", c->host, ntohs(sin->sin_port));
 
 		/* Attempt to adjust recv timeout */
+		if (c->do_ssl)
+			timeout.tv_sec = 1;
+
 		if (setsockopt(sd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) < 0)
+			warn("Failed setting recv() timeout");
+		else
+			vrb("* SO_RCVTIMEO %ld.%ld sec set", timeout.tv_sec, timeout.tv_usec / 1000);
+		if (setsockopt(sd, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout)) < 0)
 			warn("Failed setting recv() timeout");
 		else
 			vrb("* SO_RCVTIMEO %ld.%ld sec set", timeout.tv_sec, timeout.tv_usec / 1000);
@@ -208,6 +232,11 @@ static int hello(struct addrinfo *ai, struct conn *c)
 
 	vrb("* Connected to %s (%s) port %d", c->server, c->host, ntohs(sin->sin_port));
 	c->sd = sd;
+	if (c->do_ssl && ssl_open(c)) {
+		dbg("Failed SSL open");
+		close(sd);
+		return -1;
+	}
 
 	return request(c);
 }
@@ -332,13 +361,17 @@ retry:
 	if (nslookup(&c, &ai))
 		return NULL;
 
+	ssl_init(&c);
 	if (hello(ai, &c)) {
 	err:	freeaddrinfo(ai);
+		ssl_exit(&c);
 		return NULL;
 	}
 
 	if (!uget_recv(&c, buf, len)) {
 	fail:
+		if (c.do_ssl)
+			ssl_close(&c);
 		close(c.sd);
 		goto err;
 	}
@@ -368,8 +401,11 @@ retry:
 	rewind(fp);
 
 	freeaddrinfo(ai);
+	if (c.do_ssl)
+		ssl_close(&c);
 	shutdown(c.sd, SHUT_RDWR);
 	close(c.sd);
+	ssl_exit(&c);
 
 	return fp;
 }
@@ -458,4 +494,11 @@ int main(int argc, char *argv[])
 
 	return rc;
 }
-#endif	/* STANDALONE */
+#endif /* STANDALONE */
+
+/**
+ * Local Variables:
+ *  indent-tabs-mode: t
+ *  c-file-style: "linux"
+ * End:
+ */
