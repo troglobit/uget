@@ -97,44 +97,6 @@ int ssl_exit(struct conn *c)
 	return 0;
 }
 
-static int verify_callback(int preverify_ok, X509_STORE_CTX *ctx)
-{
-	int     err, depth;
-
-	err = X509_STORE_CTX_get_error(ctx);
-	depth = X509_STORE_CTX_get_error_depth(ctx);
-
-	/*
-	 * Catch a too long certificate chain. The depth limit set using
-	 * SSL_CTX_set_verify_depth() is by purpose set to "limit+1" so
-	 * that whenever the "depth>verify_depth" condition is met, we
-	 * have violated the limit and want to log this error condition.
-	 * We must do it here, because the CHAIN_TOO_LONG error would not
-	 * be found explicitly; only errors introduced by cutting off the
-	 * additional certificates would be logged.
-	 */
-	if (depth > 100) {
-		preverify_ok = 0;
-		err = X509_V_ERR_CERT_CHAIN_TOO_LONG;
-		X509_STORE_CTX_set_error(ctx, err);
-	}
-
-	if (!preverify_ok) {
-		fprintf(stderr, "*  SSL certificate verification error:num=%d:%s:depth=%d",
-			err, X509_verify_cert_error_string(err), depth);
-#if 0 // XXX: later
-		if (broken_rtc && err == X509_V_ERR_CERT_NOT_YET_VALID)
-			preverify_ok = 1;
-#endif
-	}
-
-#if 0 // XXX: later
-	if (c->strict_ssl)
-		return preverify_ok;
-#endif
-	return 1;
-}
-
 static int ssl_set_ca_location(struct conn *c)
 {
 	char *cafile = "default (override with SSL_CERT_DIR environment variable)";
@@ -186,7 +148,7 @@ int ssl_open(struct conn *c)
 	SSL_set1_host(c->ssl, c->server);
 	SSL_set_tlsext_host_name(c->ssl, c->server);
 
-	SSL_CTX_set_verify(c->ssl_ctx, SSL_VERIFY_PEER, verify_callback);
+	SSL_CTX_set_verify(c->ssl_ctx, SSL_VERIFY_PEER, NULL);
 	SSL_CTX_set_verify_depth(c->ssl_ctx, 150);
 
 	if (status(c, SSL_connect(c->ssl)))
