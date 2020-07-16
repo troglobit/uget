@@ -15,44 +15,11 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.a
  */
 
-#include "config.h"
+#include "uget.h"
 
-#include <err.h>
-#include <errno.h>
-#include <netdb.h>
-#include <poll.h>
-#include <string.h>
-#include <stdlib.h>
-#include <stdint.h>
-#include <stdio.h>
-#include <unistd.h>
-#include <arpa/inet.h>
-#include <netinet/in.h>
-#include <sys/types.h>
-#include <sys/socket.h>
+int verbose;
 
-#define dbg(fmt, args...) if (verbose > 1) printf(fmt "\n", ##args)
-#define vrb(fmt, args...) if (verbose > 0) printf(fmt "\n", ##args)
-
-struct uget {
-	char     *cmd;		/* GET/HEAD/POST */
-	char     *server;
-	uint16_t  port;
-	char     *location;
-
-	char      host[20];
-
-	int       redirect;
-	char      redirect_url[256];
-
-	int       sd;
-	char     *buf;		/* At least BUFSIZ xfer buffer */
-	size_t    len;
-};
-
-static int verbose;
-
-static void head(char *buf, struct uget *ctx);
+static void head(char *buf, struct conn *c);
 
 
 static void vrbuf(char *buf, char *prefix)
@@ -75,7 +42,7 @@ static void vrbuf(char *buf, char *prefix)
 	}
 }
 
-static int split(char *url, struct uget *ctx)
+static int split(char *url, struct conn *c)
 {
 	char *ptr, *pptr;
 
@@ -87,18 +54,19 @@ static int split(char *url, struct uget *ctx)
 		ptr = url;
 	else
 		ptr += 3;
-	ctx->server = ptr;
+	c->server = ptr;
 
 	ptr = strchr(ptr, ':');
 	if (ptr) {
 		*ptr++ = 0;
 		pptr = ptr;
 	} else {
-		ptr = ctx->server;
 		if (!strncmp(url, "http://", 7))
 			pptr = "80";
 		else
 			pptr = "443";
+		/* continue parsing here */
+		ptr = c->server;
 	}
 
 	ptr = strchr(ptr, '/');
@@ -106,26 +74,26 @@ static int split(char *url, struct uget *ctx)
 		ptr = "";
 	else
 		*ptr++ = 0;
-	ctx->location = ptr;
+	c->location = ptr;
 
 	if (pptr)
-		ctx->port = atoi(pptr);
+		c->port = atoi(pptr);
 
-	if (!ctx->server)
+	if (!c->server)
 		return 1;
 
-	dbg("* Parsed URL: FROM %s PORT %d %s /%s", ctx->server, ctx->port, ctx->cmd, ctx->location);
+	dbg("* Parsed URL: FROM %s PORT %d %s /%s", c->server, c->port, c->cmd, c->location);
 
 	return 0;
 }
 
-static int nslookup(struct uget *ctx, struct addrinfo **result)
+static int nslookup(struct conn *c, struct addrinfo **result)
 {
 	struct addrinfo hints;
 	char service[10];
 	int rc;
 
-	snprintf(service, sizeof(service), "%d", ctx->port);
+	snprintf(service, sizeof(service), "%d", c->port);
 
 	memset(&hints, 0, sizeof(struct addrinfo));
 	hints.ai_family   = AF_INET;
@@ -133,20 +101,27 @@ static int nslookup(struct uget *ctx, struct addrinfo **result)
 	hints.ai_flags    = 0;
 	hints.ai_protocol = 0;
 
-	rc = getaddrinfo(ctx->server, service, &hints, result);
+	rc = getaddrinfo(c->server, service, &hints, result);
 	if (rc) {
-		warnx("Failed looking up %s:%s: %s", ctx->server, service, gai_strerror(rc));
+		warnx("Failed looking up %s:%s: %s", c->server, service, gai_strerror(rc));
 		return -1;
 	}
 
 	return 0;
 }
 
-static char *uget_recv(struct uget *ctx, char *buf, size_t len)
+static char *uget_recv(struct conn *c, char *buf, size_t len)
 {
+	struct pollfd pfd;
 	ssize_t num;
 
-	while ((num = recv(ctx->sd, buf, len - 1, 0)) < 0) {
+	pfd.fd = c->sd;
+	pfd.events = POLLIN;
+	if (poll(&pfd, 1, 2000) < 0) {
+		warn("Server %s: %s", c->host, strerror(errno));
+		return NULL;
+	}
+	while ((num = recv(c->sd, buf, len - 1, 0)) < 0) {
 		if (errno == EINTR)
 			continue;
 		if (errno != EAGAIN)
@@ -154,15 +129,16 @@ static char *uget_recv(struct uget *ctx, char *buf, size_t len)
 		return NULL;
 	}
 	buf[num] = 0;
+	c->len = num;
 
 	return buf;
 }
 
-static int uget_send(struct uget *ctx, char *buf, size_t len)
+static int uget_send(struct conn *c, char *buf, size_t len)
 {
 	ssize_t num;
 
-	while ((num = send(ctx->sd, buf, len, 0)) < 0) {
+	while ((num = send(c->sd, buf, len, 0)) < 0) {
 		if (errno == EINTR)
 			continue;
 		break;
@@ -171,40 +147,31 @@ static int uget_send(struct uget *ctx, char *buf, size_t len)
 	return num;
 }
 
-static int request(struct uget *ctx)
+static int request(struct conn *c)
 {
-	struct pollfd pfd;
 	ssize_t num;
 	size_t len;
 
-	len = snprintf(ctx->buf, ctx->len, "%s /%s HTTP/1.1\r\n"
+	len = snprintf(c->buf, c->len, "%s /%s HTTP/1.1\r\n"
 		       "Host: %s\r\n"
 		       "User-Agent: %s/%s\r\n"
 		       "Accept: */*\r\n"
 		       "\r\n",
-		       ctx->cmd, ctx->location, ctx->server,
+		       c->cmd, c->location, c->server,
 		       PACKAGE_NAME, PACKAGE_VERSION);
-	vrbuf(ctx->buf, "> ");
+	vrbuf(c->buf, "> ");
 
-	num = uget_send(ctx, ctx->buf, len);
+	num = uget_send(c, c->buf, len);
 	if (num < 0) {
-		warn("Failed sending HTTP GET /%s to %s:%d", ctx->location, ctx->host, ctx->port);
-		close(ctx->sd);
-		return -1;
-	}
-
-	pfd.fd = ctx->sd;
-	pfd.events = POLLIN;
-	if (poll(&pfd, 1, 1000) < 0) {
-		warn("Server %s: %s", ctx->host, strerror(errno));
-		close(ctx->sd);
+		warn("Failed sending HTTP GET /%s to %s:%d", c->location, c->host, c->port);
+		close(c->sd);
 		return -1;
 	}
 
 	return 0;
 }
 
-static int hello(struct addrinfo *ai, struct uget *ctx)
+static int hello(struct addrinfo *ai, struct conn *c)
 {
 	struct sockaddr_in *sin;
 	struct addrinfo *rp;
@@ -218,8 +185,8 @@ static int hello(struct addrinfo *ai, struct uget *ctx)
 			continue;
 
 		sin = (struct sockaddr_in *)rp->ai_addr;
-		inet_ntop(rp->ai_family, &sin->sin_addr, ctx->host, sizeof(ctx->host));
-		vrb("* Trying %s:%d ...", ctx->host, ntohs(sin->sin_port));
+		inet_ntop(rp->ai_family, &sin->sin_addr, c->host, sizeof(c->host));
+		vrb("* Trying %s:%d ...", c->host, ntohs(sin->sin_port));
 
 		/* Attempt to adjust recv timeout */
 		if (setsockopt(sd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) < 0)
@@ -231,7 +198,7 @@ static int hello(struct addrinfo *ai, struct uget *ctx)
 		if (connect(sd, rp->ai_addr, rp->ai_addrlen) != -1)
 			break;	/* Success */
 
-		warn("Failed connecting to %s:%d", ctx->host, ntohs(sin->sin_port));
+		warn("Failed connecting to %s:%d", c->host, ntohs(sin->sin_port));
 
 		close(sd);
 	}
@@ -239,10 +206,10 @@ static int hello(struct addrinfo *ai, struct uget *ctx)
 	if (rp == NULL)
 		return -1;
 
-	vrb("* Connected to %s (%s) port %d", ctx->server, ctx->host, ntohs(sin->sin_port));
-	ctx->sd = sd;
+	vrb("* Connected to %s (%s) port %d", c->server, c->host, ntohs(sin->sin_port));
+	c->sd = sd;
 
-	return request(ctx);
+	return request(c);
 }
 
 static char *bufgets(char *buf)
@@ -285,7 +252,7 @@ static char *token(char **buf)
 
 }
 
-static char *parse_headers(struct uget *ctx)
+static char *parse_headers(struct conn *c)
 {
 	char version[8];
 	char mesg[32];
@@ -294,21 +261,22 @@ static char *parse_headers(struct uget *ctx)
 	int code = 0;
 
 	/* Find start of content */
-	content = strstr(ctx->buf, "\r\n\r\n");
+	content = strstr(c->buf, "\r\n\r\n");
 	if (!content) {
 		warnx("max header size");
 		return NULL;
 	}
 	content[2] = 0;
 	content += 4;
+	c->len  -= content - c->buf;
 
-	ptr = bufgets(ctx->buf);
+	ptr = bufgets(c->buf);
 	if (!ptr) {
 		warnx("no HTTP response code");
 		return NULL;
 	}
 	vrb("< %s", ptr);
-	head(ptr, ctx);
+	head(ptr, c);
 
 	p = token(&ptr);
 	if (p)
@@ -323,7 +291,7 @@ static char *parse_headers(struct uget *ctx)
 	case 200:
 		break;
 	case 301:
-		ctx->redirect = 1;
+		c->redirect = 1;
 		content = NULL;
 		break;
 	default:
@@ -334,9 +302,11 @@ static char *parse_headers(struct uget *ctx)
 
 	while ((ptr = bufgets(NULL))) {
 		vrb("< %s", ptr);
-		head(ptr, ctx);
-		if (ctx->redirect && !strncasecmp("Location: ", ptr, 10))
-			snprintf(ctx->redirect_url, sizeof(ctx->redirect_url), "%s", &ptr[10]);
+		head(ptr, c);
+		if (c->redirect && !strncasecmp("Location: ", ptr, 10))
+			snprintf(c->redirect_url, sizeof(c->redirect_url), "%s", &ptr[10]);
+		else if (!strncasecmp("Content-Length: ", ptr, 16))
+			c->content_len = atoi(&ptr[16]);
 	}
 
 	return content;
@@ -344,40 +314,40 @@ static char *parse_headers(struct uget *ctx)
 
 FILE *uget(char *cmd, char *url, char *buf, size_t len)
 {
-	struct uget ctx = { 0 };
+	struct conn c = { 0 };
 	struct addrinfo *ai;
 	FILE *fp;
 	char *ptr;
 
+	/* Let HTTP request reuse buf */
+	c.cmd = cmd;
+	c.buf = buf;
+	c.len = len;
+
 	dbg("* URL: %s", url);
 retry:
-	if (split(url, &ctx))
+	if (split(url, &c))
 		return NULL;
 
-	if (nslookup(&ctx, &ai))
+	if (nslookup(&c, &ai))
 		return NULL;
 
-	/* Let HTTP request reuse buf */
-	ctx.cmd = cmd;
-	ctx.buf = buf;
-	ctx.len = len;
-
-	if (hello(ai, &ctx)) {
+	if (hello(ai, &c)) {
 	err:	freeaddrinfo(ai);
 		return NULL;
 	}
 
-	if (!uget_recv(&ctx, buf, len)) {
+	if (!uget_recv(&c, buf, len)) {
 	fail:
-		close(ctx.sd);
+		close(c.sd);
 		goto err;
 	}
 
-	ptr = parse_headers(&ctx);
+	ptr = parse_headers(&c);
 	if (!ptr) {
-		if (ctx.redirect) {
-			dbg("* Redirecting to %s ...", ctx.redirect_url);
-			url = ctx.redirect_url;
+		if (c.redirect) {
+			dbg("* Redirecting to %s ...", c.redirect_url);
+			url = c.redirect_url;
 			goto retry;
 		}
 		goto fail;
@@ -389,32 +359,37 @@ retry:
 		goto fail;
 	}
 
-	do fputs(ptr, fp); while ((ptr = uget_recv(&ctx, buf, len)));
+	do {
+		fputs(ptr, fp);
+		c.content_len -= c.len;
+		if (c.content_len > 0)
+			ptr = uget_recv(&c, buf, len);
+	} while (c.content_len > 0);
+	rewind(fp);
 
 	freeaddrinfo(ai);
-	shutdown(ctx.sd, SHUT_RDWR);
-	close(ctx.sd);
+	shutdown(c.sd, SHUT_RDWR);
+	close(c.sd);
 
-	rewind(fp);
 	return fp;
 }
 
 #ifndef STANDALONE
-static void head(char *buf, struct uget *ctx)
+static void head(char *buf, struct conn *c)
 {
 	(void)buf;
-	(void)ctx;
+	(void)c;
 	return;
 }
 
 #else  /* STANDALONE */
 #include <getopt.h>
 
-static void head(char *buf, struct uget *ctx)
+static void head(char *buf, struct conn *c)
 {
 	char *ptr;
 
-	if (strcmp(ctx->cmd, "HEAD"))
+	if (strcmp(c->cmd, "HEAD"))
 		return;
 
 	ptr = strchr(buf, ':');
