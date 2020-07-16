@@ -33,6 +33,7 @@
 #define vrb(fmt, args...) if (verbose > 0) printf(fmt "\n", ##args)
 
 struct uget {
+	char     *cmd;		/* GET/HEAD/POST */
 	char     *server;
 	uint16_t  port;
 	char     *location;
@@ -104,7 +105,7 @@ static int split(char *url, struct uget *ctx)
 	if (!ctx->server)
 		return 1;
 
-	dbg("* Parsed URL: FROM %s PORT %d GET /%s", ctx->server, ctx->port, ctx->location);
+	dbg("* Parsed URL: FROM %s PORT %d %s /%s", ctx->server, ctx->port, ctx->cmd, ctx->location);
 
 	return 0;
 }
@@ -132,19 +133,19 @@ static int nslookup(struct uget *ctx, struct addrinfo **result)
 	return 0;
 }
 
-static int get(int sd, struct uget *ctx)
+static int request(int sd, struct uget *ctx)
 {
 	struct pollfd pfd;
 	ssize_t num;
 	size_t len;
 	char buf[256];
 
-	len = snprintf(buf, sizeof(buf), "GET /%s HTTP/1.1\r\n"
+	len = snprintf(buf, sizeof(buf), "%s /%s HTTP/1.1\r\n"
 		       "Host: %s\r\n"
 		       "User-Agent: " PACKAGE_NAME "/" PACAKGE_VERSION "\r\n"
 		       "Accept: */*\r\n"
 		       "\r\n",
-		       ctx->location, ctx->server);
+		       ctx->cmd, ctx->location, ctx->server);
 	vrbuf(buf, "> ");
 
 	num = send(sd, buf, len, 0);
@@ -202,7 +203,7 @@ static int hello(struct addrinfo *ai, struct uget *ctx)
 
 	vrb("* Connected to %s (%s) port %d", ctx->server, ctx->host, ntohs(sin->sin_port));
 
-	return get(sd, ctx);
+	return request(sd, ctx);
 }
 
 static char *bufgets(char *buf)
@@ -245,6 +246,24 @@ static char *token(char **buf)
 
 }
 
+static void head(char *buf, struct uget *ctx)
+{
+	char *ptr;
+
+	if (strcmp(ctx->cmd, "HEAD"))
+		return;
+
+	ptr = strchr(buf, ':');
+	if (!ptr) {
+		puts(buf);
+		return;
+	}
+
+	*ptr = 0;
+	printf("\e[1m%s:\e[0m%s\n", buf, &ptr[1]);
+	*ptr = ':';
+}
+
 static char *parse_headers(char *buf, struct uget *ctx)
 {
 	char version[8];
@@ -268,6 +287,7 @@ static char *parse_headers(char *buf, struct uget *ctx)
 		return NULL;
 	}
 	vrb("< %s", ptr);
+	head(ptr, ctx);
 
 	p = token(&ptr);
 	if (p)
@@ -293,6 +313,7 @@ static char *parse_headers(char *buf, struct uget *ctx)
 
 	while ((ptr = bufgets(NULL))) {
 		vrb("< %s", ptr);
+		head(ptr, ctx);
 		if (ctx->redirect && !strncasecmp("Location: ", ptr, 10))
 			snprintf(ctx->redirect_url, sizeof(ctx->redirect_url), "%s", &ptr[10]);
 	}
@@ -313,9 +334,9 @@ static char *fetch(int sd, char *buf, size_t len)
 	return NULL;
 }
 
-FILE *uget(char *url, char *buf, size_t len)
+FILE *uget(char *cmd, char *url, char *buf, size_t len)
 {
-	struct uget ctx = { 0 };
+	struct uget ctx = { cmd };
 	struct addrinfo *ai;
 	FILE *fp;
 	char *ptr;
@@ -378,6 +399,7 @@ int main(int argc, char *argv[])
 {
 	FILE *fp, *out = stdout;
 	char *buf, *fn = NULL;
+	char *cmd = "GET";
 	int opt = 1;
 	int rc;
 
@@ -386,11 +408,14 @@ int main(int argc, char *argv[])
 
 	while (argv[opt][0] == '-') {
 		if (!strcmp(argv[opt], "-v")) {
-			verbose++;
 			opt++;
+			verbose++;
 		} else if (!strcmp(argv[opt], "-o")) {
 			opt++;
 			fn = argv[opt++];
+		} else if (!strcmp(argv[opt], "-I")) {
+			opt++;
+			cmd = "HEAD";
 		}
 	}
 
@@ -405,7 +430,7 @@ int main(int argc, char *argv[])
 	if (!buf)
 		err(1, "Failed allocating  (%d bytes) receive buffer", BUFSIZ);
 
-	fp = uget(argv[opt], buf, BUFSIZ);
+	fp = uget(cmd, argv[opt], buf, BUFSIZ);
 	if (fp) {
 		while (fgets(buf, BUFSIZ, fp))
 			fputs(buf, out);
