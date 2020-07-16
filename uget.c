@@ -348,13 +348,13 @@ FILE *uget(char *cmd, char *url, char *buf, size_t len)
 	FILE *fp;
 	char *ptr;
 
+retry:
 	/* Let HTTP request reuse buf */
 	c.cmd = cmd;
 	c.buf = buf;
 	c.len = len;
 
 	dbg("* URL: %s", url);
-retry:
 	if (split(url, &c))
 		return NULL;
 
