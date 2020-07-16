@@ -233,7 +233,7 @@ static int hello(struct addrinfo *ai, struct conn *c)
 	vrb("* Connected to %s (%s) port %d", c->server, c->host, ntohs(sin->sin_port));
 	c->sd = sd;
 	if (c->do_ssl && ssl_open(c)) {
-		dbg("Failed SSL open");
+		warn("Failed opening HTTPS connection to %s", c->server);
 		close(sd);
 		return -1;
 	}

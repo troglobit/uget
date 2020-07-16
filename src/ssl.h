@@ -37,14 +37,14 @@ char *ssl_recv  (struct conn *c, char *buf, size_t len);
 
 #else /* fallback to trigger error */
 
-#define ssl_init(c)
-#define ssl_exit(c)
+static inline int   ssl_init  (struct conn *c) { (void)c; return -1; }
+static inline int   ssl_exit  (struct conn *c) { (void)c; return -1; }
 
-#define ssl_open(c) -1
-#define ssl_close(c)
+static inline int   ssl_open  (struct conn *c) { (void)c; errno = EPROTONOSUPPORT; return -1; }
+static inline int   ssl_close (struct conn *c) { (void)c; return -1; }
 
-#define ssl_send(c, buf, len) -1
-#define ssl_recv(c, buf, len) NULL
+static inline int   ssl_send  (struct conn *c, char *buf, size_t len) { (void)c; (void)buf, (void)len; return -1; }
+static inline char *ssl_recv  (struct conn *c, char *buf, size_t len) { (void)c; (void)buf, (void)len; return NULL; }
 
 #endif /* ENABLE_SSL */
 #endif /* UGET_SSL_H_ */
