@@ -147,10 +147,11 @@ static int request(int sd, struct uget *ctx)
 
 	len = snprintf(buf, sizeof(buf), "%s /%s HTTP/1.1\r\n"
 		       "Host: %s\r\n"
-		       "User-Agent: " PACKAGE_NAME "/" PACAKGE_VERSION "\r\n"
+		       "User-Agent: %s/%s\r\n"
 		       "Accept: */*\r\n"
 		       "\r\n",
-		       ctx->cmd, ctx->location, ctx->server);
+		       ctx->cmd, ctx->location, ctx->server,
+		       PACKAGE_NAME, PACKAGE_VERSION);
 	vrbuf(buf, "> ");
 
 	num = send(sd, buf, len, 0);
