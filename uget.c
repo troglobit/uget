@@ -15,6 +15,8 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.a
  */
 
+#include "config.h"
+
 #include <err.h>
 #include <errno.h>
 #include <netdb.h>
