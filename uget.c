@@ -395,9 +395,9 @@ retry:
 	do {
 		fputs(ptr, fp);
 		c.content_len -= c.len;
-		if (c.content_len > 0)
+		if (c.content_len > 0 && !strcmp(c.cmd, "GET"))
 			ptr = uget_recv(&c, buf, len);
-	} while (c.content_len > 0);
+	} while (c.content_len > 0 && !strcmp(c.cmd, "GET"));
 	rewind(fp);
 
 	freeaddrinfo(ai);
