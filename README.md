@@ -1,5 +1,6 @@
 Atten-shun!
 ===========
+[![License Badge][]][License] [![Travis Status][]][Travis]
 
 Unless you're here for something really small and generally useless,
 albeit with a *very liberal* [Open Source license][1], you really want
@@ -24,3 +25,7 @@ Take care
 
 [1]: https://en.wikipedia.org/wiki/ISC_license
 [2]: https://github.com/troglobit/ssdp-responder/
+[License]:         https://en.wikipedia.org/wiki/ISC_license
+[License Badge]:   https://img.shields.io/badge/License-ISC-blue.svg
+[Travis]:          https://travis-ci.org/troglobit/uget
+[Travis Status]:   https://travis-ci.org/troglobit/uget.png?branch=master
