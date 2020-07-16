@@ -44,6 +44,9 @@ struct uget {
 
 	int       redirect;
 	char      redirect_url[256];
+
+	char     *buf;		/* At least BUFSIZ xfer buffer */
+	size_t    len;
 };
 
 static int verbose;
@@ -172,18 +175,17 @@ static int request(int sd, struct uget *ctx)
 	struct pollfd pfd;
 	ssize_t num;
 	size_t len;
-	char buf[256];
 
-	len = snprintf(buf, sizeof(buf), "%s /%s HTTP/1.1\r\n"
+	len = snprintf(ctx->buf, ctx->len, "%s /%s HTTP/1.1\r\n"
 		       "Host: %s\r\n"
 		       "User-Agent: %s/%s\r\n"
 		       "Accept: */*\r\n"
 		       "\r\n",
 		       ctx->cmd, ctx->location, ctx->server,
 		       PACKAGE_NAME, PACKAGE_VERSION);
-	vrbuf(buf, "> ");
+	vrbuf(ctx->buf, "> ");
 
-	num = uget_send(sd, buf, len);
+	num = uget_send(sd, ctx->buf, len);
 	if (num < 0) {
 		warn("Failed sending HTTP GET /%s to %s:%d", ctx->location, ctx->host, ctx->port);
 		close(sd);
@@ -281,7 +283,7 @@ static char *token(char **buf)
 
 }
 
-static char *parse_headers(char *buf, struct uget *ctx)
+static char *parse_headers(struct uget *ctx)
 {
 	char version[8];
 	char mesg[32];
@@ -290,7 +292,7 @@ static char *parse_headers(char *buf, struct uget *ctx)
 	int code = 0;
 
 	/* Find start of content */
-	content = strstr(buf, "\r\n\r\n");
+	content = strstr(ctx->buf, "\r\n\r\n");
 	if (!content) {
 		warnx("max header size");
 		return NULL;
@@ -298,7 +300,7 @@ static char *parse_headers(char *buf, struct uget *ctx)
 	content[2] = 0;
 	content += 4;
 
-	ptr = bufgets(buf);
+	ptr = bufgets(ctx->buf);
 	if (!ptr) {
 		warnx("no HTTP response code");
 		return NULL;
@@ -354,7 +356,11 @@ retry:
 	if (nslookup(&ctx, &ai))
 		return NULL;
 
+	/* Let HTTP request reuse buf */
 	ctx.cmd = cmd;
+	ctx.buf = buf;
+	ctx.len = len;
+
 	sd = hello(ai, &ctx);
 	freeaddrinfo(ai);
 	if (-1 == sd)
@@ -367,7 +373,7 @@ retry:
 		return NULL;
 	}
 
-	ptr = parse_headers(buf, &ctx);
+	ptr = parse_headers(&ctx);
 	if (!ptr) {
 		if (ctx.redirect) {
 			dbg("* Redirecting to %s ...", ctx.redirect_url);
