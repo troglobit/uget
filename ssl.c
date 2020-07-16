@@ -62,7 +62,7 @@ static int status(struct conn *c, int rc)
 			 ERR_reason_error_string(rc) ?: "unknown error", rc);
 	}
 leave:
-	printf("%s\n", errmsg);
+	fprintf(stderr, "* %s\n", errmsg);
 	return -1;
 }
 
@@ -171,15 +171,23 @@ int ssl_open(struct conn *c)
 	X509 *cert;
 	BIO *out;
 
-	SSL_CTX_set_verify(c->ssl_ctx, SSL_VERIFY_PEER, verify_callback);
-	SSL_CTX_set_verify_depth(c->ssl_ctx, 150);
-
 	/* Try to figure out location of trusted CA certs on system */
 	if (ssl_set_ca_location(c))
 		return -1;
 
 	c->ssl = SSL_new(c->ssl_ctx);
+	if (!c->ssl)
+		return -1;
+
 	SSL_set_fd(c->ssl, c->sd);
+
+	/* Enable automatic hostname checks, allow wildcard certs */
+	SSL_set_hostflags(c->ssl, X509_CHECK_FLAG_NO_PARTIAL_WILDCARDS);
+	SSL_set1_host(c->ssl, c->server);
+	SSL_set_tlsext_host_name(c->ssl, c->server);
+
+	SSL_CTX_set_verify(c->ssl_ctx, SSL_VERIFY_PEER, verify_callback);
+	SSL_CTX_set_verify_depth(c->ssl_ctx, 150);
 
 	if (status(c, SSL_connect(c->ssl)))
 		return -1;
@@ -203,6 +211,16 @@ int ssl_open(struct conn *c)
 		ASN1_TIME_print(out, X509_get0_notBefore(cert));
 		BIO_puts(out, "\n*  expire date: ");
 		ASN1_TIME_print(out, X509_get0_notAfter(cert));
+
+		BIO_puts(out, "\n*  subjectAltName: host \"");
+		BIO_puts(out, c->server);
+		BIO_puts(out, "\" ");
+		if (SSL_get_verify_result(c->ssl) == X509_V_OK) {
+			BIO_puts(out, "matched cert's \"");
+			BIO_puts(out, SSL_get0_peername(c->ssl) ?: "");
+			BIO_puts(out, "\"");
+		} else
+			BIO_puts(out, "not found in cert!");
 
 		BIO_puts(out, "\n*  issuer: ");
 		X509_NAME_print(out, X509_get_issuer_name(cert), 0);

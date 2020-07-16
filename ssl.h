@@ -22,6 +22,7 @@
 #include "uget.h"
 
 #ifdef ENABLE_SSL
+#include <openssl/x509v3.h>
 #include <openssl/ssl.h>
 #include <openssl/err.h>
 
