@@ -314,12 +314,13 @@ static char *fetch(int sd, char *buf, size_t len)
 	ssize_t num;
 
 	num = recv(sd, buf, len - 1, 0);
-	if (num > 0) {
-		buf[num] = 0;
-		return buf;
+	if (num < 0) {
+		warn("no data");
+		return NULL;
 	}
+	buf[num] = 0;
 
-	return NULL;
+	return buf;
 }
 
 FILE *uget(char *cmd, char *url, char *buf, size_t len)
@@ -345,7 +346,6 @@ retry:
 		return NULL;
 
 	if (!fetch(sd, buf, len)) {
-		warnx("no data");
 	fail:
 		shutdown(sd, SHUT_RDWR);
 		close(sd);
