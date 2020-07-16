@@ -392,13 +392,15 @@ retry:
 		goto fail;
 	}
 
-	do {
-		fputs(ptr, fp);
-		c.content_len -= c.len;
-		if (c.content_len > 0 && !strcmp(c.cmd, "GET"))
-			ptr = uget_recv(&c, buf, len);
-	} while (c.content_len > 0 && !strcmp(c.cmd, "GET"));
-	rewind(fp);
+	if (strcmp(c.cmd, "HEAD")) {
+		do {
+			fputs(ptr, fp);
+			c.content_len -= c.len;
+			if (c.content_len > 0)
+				ptr = uget_recv(&c, buf, len);
+		} while (c.content_len > 0);
+		rewind(fp);
+	}
 
 	freeaddrinfo(ai);
 	if (c.do_ssl)
