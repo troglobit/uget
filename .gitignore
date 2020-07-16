@@ -1,6 +1,4 @@
 *~
-*.o
-.deps/
 aux/
 autom4te.cache/
 aclocal.m4
@@ -12,4 +10,3 @@ configure
 Makefile.in
 Makefile
 stamp-h1
-uget
