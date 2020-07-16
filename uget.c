@@ -45,6 +45,7 @@ struct uget {
 	int       redirect;
 	char      redirect_url[256];
 
+	int       sd;
 	char     *buf;		/* At least BUFSIZ xfer buffer */
 	size_t    len;
 };
@@ -141,11 +142,11 @@ static int nslookup(struct uget *ctx, struct addrinfo **result)
 	return 0;
 }
 
-static char *uget_recv(int sd, char *buf, size_t len)
+static char *uget_recv(struct uget *ctx, char *buf, size_t len)
 {
 	ssize_t num;
 
-	while ((num = recv(sd, buf, len - 1, 0)) < 0) {
+	while ((num = recv(ctx->sd, buf, len - 1, 0)) < 0) {
 		if (errno == EINTR)
 			continue;
 		if (errno != EAGAIN)
@@ -157,11 +158,11 @@ static char *uget_recv(int sd, char *buf, size_t len)
 	return buf;
 }
 
-static int uget_send(int sd, char *buf, size_t len)
+static int uget_send(struct uget *ctx, char *buf, size_t len)
 {
 	ssize_t num;
 
-	while ((num = send(sd, buf, len, 0)) < 0) {
+	while ((num = send(ctx->sd, buf, len, 0)) < 0) {
 		if (errno == EINTR)
 			continue;
 		break;
@@ -170,7 +171,7 @@ static int uget_send(int sd, char *buf, size_t len)
 	return num;
 }
 
-static int request(int sd, struct uget *ctx)
+static int request(struct uget *ctx)
 {
 	struct pollfd pfd;
 	ssize_t num;
@@ -185,22 +186,22 @@ static int request(int sd, struct uget *ctx)
 		       PACKAGE_NAME, PACKAGE_VERSION);
 	vrbuf(ctx->buf, "> ");
 
-	num = uget_send(sd, ctx->buf, len);
+	num = uget_send(ctx, ctx->buf, len);
 	if (num < 0) {
 		warn("Failed sending HTTP GET /%s to %s:%d", ctx->location, ctx->host, ctx->port);
-		close(sd);
+		close(ctx->sd);
 		return -1;
 	}
 
-	pfd.fd = sd;
+	pfd.fd = ctx->sd;
 	pfd.events = POLLIN;
 	if (poll(&pfd, 1, 1000) < 0) {
 		warn("Server %s: %s", ctx->host, strerror(errno));
-		close(sd);
+		close(ctx->sd);
 		return -1;
 	}
 
-	return sd;
+	return 0;
 }
 
 static int hello(struct addrinfo *ai, struct uget *ctx)
@@ -239,8 +240,9 @@ static int hello(struct addrinfo *ai, struct uget *ctx)
 		return -1;
 
 	vrb("* Connected to %s (%s) port %d", ctx->server, ctx->host, ntohs(sin->sin_port));
+	ctx->sd = sd;
 
-	return request(sd, ctx);
+	return request(ctx);
 }
 
 static char *bufgets(char *buf)
@@ -346,7 +348,6 @@ FILE *uget(char *cmd, char *url, char *buf, size_t len)
 	struct addrinfo *ai;
 	FILE *fp;
 	char *ptr;
-	int sd;
 
 	dbg("* URL: %s", url);
 retry:
@@ -361,16 +362,15 @@ retry:
 	ctx.buf = buf;
 	ctx.len = len;
 
-	sd = hello(ai, &ctx);
-	freeaddrinfo(ai);
-	if (-1 == sd)
+	if (hello(ai, &ctx)) {
+	err:	freeaddrinfo(ai);
 		return NULL;
+	}
 
-	if (!uget_recv(sd, buf, len)) {
+	if (!uget_recv(&ctx, buf, len)) {
 	fail:
-		shutdown(sd, SHUT_RDWR);
-		close(sd);
-		return NULL;
+		close(ctx.sd);
+		goto err;
 	}
 
 	ptr = parse_headers(&ctx);
@@ -389,10 +389,11 @@ retry:
 		goto fail;
 	}
 
-	do fputs(ptr, fp); while ((ptr = uget_recv(sd, buf, len)));
+	do fputs(ptr, fp); while ((ptr = uget_recv(&ctx, buf, len)));
 
-	shutdown(sd, SHUT_RDWR);
-	close(sd);
+	freeaddrinfo(ai);
+	shutdown(ctx.sd, SHUT_RDWR);
+	close(ctx.sd);
 
 	rewind(fp);
 	return fp;
