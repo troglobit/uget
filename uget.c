@@ -389,9 +389,11 @@ retry:
 }
 
 #ifndef LOCALSTATEDIR
+#include <getopt.h>
+
 static int usage(void)
 {
-	printf("Usage: uget [-v] [-o FILE] URL\n");
+	printf("Usage: uget [-vI] [-o FILE] URL\n");
 	return 0;
 }
 
@@ -400,24 +402,26 @@ int main(int argc, char *argv[])
 	FILE *fp, *out = stdout;
 	char *buf, *fn = NULL;
 	char *cmd = "GET";
-	int opt = 1;
-	int rc;
+	int rc, c;
 
-	if (argc < 2)
-		return usage();
-
-	while (argv[opt][0] == '-') {
-		if (!strcmp(argv[opt], "-v")) {
-			opt++;
+	while ((c = getopt(argc, argv, "Io:v")) != EOF) {
+		switch (c) {
+		case 'v':
 			verbose++;
-		} else if (!strcmp(argv[opt], "-o")) {
-			opt++;
-			fn = argv[opt++];
-		} else if (!strcmp(argv[opt], "-I")) {
-			opt++;
+			break;
+		case 'o':
+			fn = optarg;
+			break;
+		case 'I':
 			cmd = "HEAD";
+			break;
+		default:
+			return usage();
 		}
 	}
+
+	if (argc <= optind)
+		return usage();
 
 	if (fn) {
 		out = fopen(fn, "w");
@@ -430,7 +434,7 @@ int main(int argc, char *argv[])
 	if (!buf)
 		err(1, "Failed allocating  (%d bytes) receive buffer", BUFSIZ);
 
-	fp = uget(cmd, argv[opt], buf, BUFSIZ);
+	fp = uget(cmd, argv[optind], buf, BUFSIZ);
 	if (fp) {
 		while (fgets(buf, BUFSIZ, fp))
 			fputs(buf, out);
