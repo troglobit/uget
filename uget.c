@@ -46,6 +46,9 @@ struct uget {
 
 static int verbose;
 
+static void head(char *buf, struct uget *ctx);
+
+
 static void vrbuf(char *buf, char *prefix)
 {
 	char *ptr = buf;
@@ -246,24 +249,6 @@ static char *token(char **buf)
 
 }
 
-static void head(char *buf, struct uget *ctx)
-{
-	char *ptr;
-
-	if (strcmp(ctx->cmd, "HEAD"))
-		return;
-
-	ptr = strchr(buf, ':');
-	if (!ptr) {
-		puts(buf);
-		return;
-	}
-
-	*ptr = 0;
-	printf("\e[1m%s:\e[0m%s\n", buf, &ptr[1]);
-	*ptr = ':';
-}
-
 static char *parse_headers(char *buf, struct uget *ctx)
 {
 	char version[8];
@@ -388,8 +373,34 @@ retry:
 	return fp;
 }
 
-#ifndef LOCALSTATEDIR
+#ifndef STANDALONE
+static void head(char *buf, struct uget *ctx)
+{
+	(void)buf;
+	(void)ctx;
+	return;
+}
+
+#else  /* STANDALONE */
 #include <getopt.h>
+
+static void head(char *buf, struct uget *ctx)
+{
+	char *ptr;
+
+	if (strcmp(ctx->cmd, "HEAD"))
+		return;
+
+	ptr = strchr(buf, ':');
+	if (!ptr) {
+		puts(buf);
+		return;
+	}
+
+	*ptr = 0;
+	printf("\e[1m%s:\e[0m%s\n", buf, &ptr[1]);
+	*ptr = ':';
+}
 
 static int usage(void)
 {
@@ -446,4 +457,4 @@ int main(int argc, char *argv[])
 
 	return rc;
 }
-#endif
+#endif	/* STANDALONE */
