@@ -138,6 +138,20 @@ static int nslookup(struct uget *ctx, struct addrinfo **result)
 	return 0;
 }
 
+static char *uget_recv(int sd, char *buf, size_t len)
+{
+	ssize_t num;
+
+	num = recv(sd, buf, len - 1, 0);
+	if (num < 0) {
+		warn("no data");
+		return NULL;
+	}
+	buf[num] = 0;
+
+	return buf;
+}
+
 static int request(int sd, struct uget *ctx)
 {
 	struct pollfd pfd;
@@ -309,20 +323,6 @@ static char *parse_headers(char *buf, struct uget *ctx)
 	return content;
 }
 
-static char *fetch(int sd, char *buf, size_t len)
-{
-	ssize_t num;
-
-	num = recv(sd, buf, len - 1, 0);
-	if (num < 0) {
-		warn("no data");
-		return NULL;
-	}
-	buf[num] = 0;
-
-	return buf;
-}
-
 FILE *uget(char *cmd, char *url, char *buf, size_t len)
 {
 	struct uget ctx = { 0 };
@@ -345,7 +345,7 @@ retry:
 	if (-1 == sd)
 		return NULL;
 
-	if (!fetch(sd, buf, len)) {
+	if (!uget_recv(sd, buf, len)) {
 	fail:
 		shutdown(sd, SHUT_RDWR);
 		close(sd);
@@ -368,7 +368,7 @@ retry:
 		goto fail;
 	}
 
-	do fputs(ptr, fp); while ((ptr = fetch(sd, buf, len)));
+	do fputs(ptr, fp); while ((ptr = uget_recv(sd, buf, len)));
 
 	shutdown(sd, SHUT_RDWR);
 	close(sd);
