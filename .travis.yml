@@ -1,0 +1,34 @@
+# Travis CI integration
+# Defaults to GNU GCC and autotools: ./configure && make && make test
+language: c
+
+# Ubuntu 18.04 LTS has OpenSSL 1.1, which is requried by uget
+dist: bionic
+
+# Test build with both GCC and Clang (LLVM)
+compiler:
+  - gcc
+  - clang
+
+before_install:
+  - sudo apt-get install -y tree libssl-dev
+
+# We don't store generated files (configure and Makefile) in GIT,
+# so we must customize the default build script to run ./autogen.sh
+# Try first to build without SSL to check for regressions, then run
+# all unit tests on a merecat with HTTPS enabled.
+script:
+  - ./autogen.sh
+  - ./configure --prefix=/ --without-ssl
+  - make clean
+  - make V=1 || cat config.h
+  - ./src/uget -I http://example.com
+  - make clean
+  - ./configure --prefix=/
+  - make V=1 || cat config.h
+  - make check
+  - DESTDIR=/tmp/tok make install-strip
+  - tree /tmp/tok
+  - ldd /tmp/tok/bin/uget
+  - /tmp/tok/bin/uget -h
+  - /tmp/tok/bin/uget -o foo http://www.examplecat.com
