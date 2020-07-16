@@ -152,6 +152,19 @@ static char *uget_recv(int sd, char *buf, size_t len)
 	return buf;
 }
 
+static int uget_send(int sd, char *buf, size_t len)
+{
+	ssize_t num;
+
+	while ((num = send(sd, buf, len, 0)) < 0) {
+		if (errno == EINTR)
+			continue;
+		break;
+	}
+
+	return num;
+}
+
 static int request(int sd, struct uget *ctx)
 {
 	struct pollfd pfd;
@@ -168,7 +181,7 @@ static int request(int sd, struct uget *ctx)
 		       PACKAGE_NAME, PACKAGE_VERSION);
 	vrbuf(buf, "> ");
 
-	num = send(sd, buf, len, 0);
+	num = uget_send(sd, buf, len);
 	if (num < 0) {
 		warn("Failed sending HTTP GET /%s to %s:%d", ctx->location, ctx->host, ctx->port);
 		close(sd);
