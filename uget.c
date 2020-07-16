@@ -145,6 +145,8 @@ static char *uget_recv(int sd, char *buf, size_t len)
 	while ((num = recv(sd, buf, len - 1, 0)) < 0) {
 		if (errno == EINTR)
 			continue;
+		if (errno != EAGAIN)
+			warn("no data");
 		return NULL;
 	}
 	buf[num] = 0;
