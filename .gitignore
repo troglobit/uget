@@ -1,6 +1,10 @@
 *~
 aux/
 autom4te.cache/
+GPATH
+GRTAGS
+GTAGS
+ID
 aclocal.m4
 config.h.in
 config.h
