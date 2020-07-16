@@ -50,6 +50,25 @@ AS_IF([test "x$with_ssl" != "xno"], [
 	])
 	AC_DEFINE([ENABLE_SSL], [1], [Enable HTTPS support])
 ])
+
+# By default we rely on the built-in locations of Open/LibreSSL and GnuTLS,
+# on error we fall back to these two locations
+# For more excellent information on the topic, see this blog post
+#   https://www.happyassassin.net/2015/01/12/a-note-about-ssltls-trusted-certificate-stores-and-platforms/
+CAFILE1="/etc/ssl/certs/ca-certificates.crt"
+CAFILE2="/etc/pki/tls/certs/ca-bundle.trust.crt"
+
+# Add OS-specific flags
+case "$host_os" in
+darwin*)
+   LDFLAGS="$LDFLAGS -lresolv"
+   CAFILE2="/usr/local/etc/openssl/cert.pem"   # where Homebrew's libressl places it
+   ;;
+esac
+
+AC_DEFINE_UNQUOTED([CAFILE1], "$CAFILE1", [First fallback location for Open/LibreSSL and GnuTLS trust db])
+AC_DEFINE_UNQUOTED([CAFILE2], "$CAFILE2", [Second location for Open/LibreSSL and GnuTLS trust db])
+
 AM_CONDITIONAL([ENABLE_SSL], test "x$with_ssl" = "xyes")
 
 AC_OUTPUT

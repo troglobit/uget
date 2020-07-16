@@ -97,13 +97,123 @@ int ssl_exit(struct conn *c)
 	return 0;
 }
 
+static int verify_callback(int preverify_ok, X509_STORE_CTX *ctx)
+{
+	int     err, depth;
+
+	err = X509_STORE_CTX_get_error(ctx);
+	depth = X509_STORE_CTX_get_error_depth(ctx);
+
+	/*
+	 * Catch a too long certificate chain. The depth limit set using
+	 * SSL_CTX_set_verify_depth() is by purpose set to "limit+1" so
+	 * that whenever the "depth>verify_depth" condition is met, we
+	 * have violated the limit and want to log this error condition.
+	 * We must do it here, because the CHAIN_TOO_LONG error would not
+	 * be found explicitly; only errors introduced by cutting off the
+	 * additional certificates would be logged.
+	 */
+	if (depth > 100) {
+		preverify_ok = 0;
+		err = X509_V_ERR_CERT_CHAIN_TOO_LONG;
+		X509_STORE_CTX_set_error(ctx, err);
+	}
+
+	if (!preverify_ok) {
+		fprintf(stderr, "*  SSL certificate verification error:num=%d:%s:depth=%d",
+			err, X509_verify_cert_error_string(err), depth);
+#if 0 // XXX: later
+		if (broken_rtc && err == X509_V_ERR_CERT_NOT_YET_VALID)
+			preverify_ok = 1;
+#endif
+	}
+
+#if 0 // XXX: later
+	if (c->strict_ssl)
+		return preverify_ok;
+#endif
+	return 1;
+}
+
+static int ssl_set_ca_location(struct conn *c)
+{
+	char *cafile = "default (override with SSL_CERT_DIR environment variable)";
+	int ret;
+
+#if 0 // XXX: later
+	/* A user defined CA PEM bundle overrides any built-ins or fall-backs */
+	if (ca_trust_file) {
+		ret = SSL_CTX_load_verify_locations(c->ssl_ctx, ca_trust_file, NULL);
+		goto done;
+	}
+#endif
+	ret = SSL_CTX_set_default_verify_paths(c->ssl_ctx);
+	if (ret < 1) {
+		cafile = CAFILE1;
+		ret = SSL_CTX_load_verify_locations(c->ssl_ctx, cafile, NULL);
+	}
+	if (ret < 1) {
+		cafile = CAFILE2;
+		ret = SSL_CTX_load_verify_locations(c->ssl_ctx, cafile, NULL);
+	}
+//done:
+	if (ret < 1)
+		return 1;
+
+	vrb("* Successfully set certificate verify location:");
+	vrb("*  CAfile: %s", cafile);
+
+	return 0;
+}
+
 int ssl_open(struct conn *c)
 {
+	X509 *cert;
+	BIO *out;
+
+	SSL_CTX_set_verify(c->ssl_ctx, SSL_VERIFY_PEER, verify_callback);
+	SSL_CTX_set_verify_depth(c->ssl_ctx, 150);
+
+	/* Try to figure out location of trusted CA certs on system */
+	if (ssl_set_ca_location(c))
+		return -1;
+
 	c->ssl = SSL_new(c->ssl_ctx);
 	SSL_set_fd(c->ssl, c->sd);
 
 	if (status(c, SSL_connect(c->ssl)))
 		return -1;
+
+	vrb("* SSL connection using %s / %s", SSL_get_cipher_version(c->ssl), SSL_get_cipher_name(c->ssl));
+
+	cert = SSL_get_peer_certificate(c->ssl);
+	if (!cert) {
+		fprintf(stderr, "* Failed querying %s for certificate", c->server);
+		return -1;
+	}
+
+	if (verbose) {
+		out = BIO_new_fp(stdout, BIO_NOCLOSE);
+
+		BIO_puts(out, "* Server certificate:");
+		BIO_puts(out, "\n*  subject: ");
+		X509_NAME_print(out, X509_get_subject_name(cert), 0);
+
+		BIO_puts(out, "\n*  start date: ");
+		ASN1_TIME_print(out, X509_get0_notBefore(cert));
+		BIO_puts(out, "\n*  expire date: ");
+		ASN1_TIME_print(out, X509_get0_notAfter(cert));
+
+		BIO_puts(out, "\n*  issuer: ");
+		X509_NAME_print(out, X509_get_issuer_name(cert), 0);
+
+		BIO_free_all(out);
+	}
+
+	if (SSL_get_verify_result(c->ssl) == X509_V_OK)
+		vrb("\n*  SSL certificate verify OK.");
+
+	X509_free(cert);
 
 	return 0;
 }
