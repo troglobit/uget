@@ -22,7 +22,7 @@ script:
   - ./configure --prefix=/ --without-ssl
   - make clean
   - make V=1 || cat config.h
-  - ./src/uget -I http://example.com
+  - ./src/uget -vv -I http://example.com
   - make clean
   - ./configure --prefix=/
   - make V=1 || cat config.h
@@ -31,4 +31,6 @@ script:
   - tree /tmp/tok
   - ldd /tmp/tok/bin/uget
   - /tmp/tok/bin/uget -h
-  - /tmp/tok/bin/uget -o foo http://www.examplecat.com
+  - /tmp/tok/bin/uget -vv -I http://ipv6.test-ipv6.com/
+  - /tmp/tok/bin/uget -vv -I https://ipv6.test-ipv6.com/
+  - /tmp/tok/bin/uget -vv -o foo http://www.examplecat.com
