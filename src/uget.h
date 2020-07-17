@@ -50,6 +50,7 @@ struct conn {
 	char      redirect_url[256];
 
 	int       sd;
+	int       nodelay;	/* TCP_NODELAY */
 	int       content_len;
 
 	char     *buf;		/* At least BUFSIZ xfer buffer */
