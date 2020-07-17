@@ -52,6 +52,7 @@ struct conn {
 	int       sd;
 	int       nodelay;	/* TCP_NODELAY */
 	int       content_len;
+	double    timeout;
 
 	char     *buf;		/* At least BUFSIZ xfer buffer */
 	size_t    len;

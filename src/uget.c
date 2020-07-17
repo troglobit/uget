@@ -215,9 +215,9 @@ static int hello(struct addrinfo *ai, struct conn *c)
 	int sd;
 
 	for (rp = ai; rp != NULL; rp = rp->ai_next) {
-		struct timeval timeout = { 0, 200000 };
-		socklen_t len;
+		struct timeval timeout;
 		int val = c->nodelay;
+		socklen_t len;
 
 		sd = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
 		if (sd == -1)
@@ -236,6 +236,8 @@ static int hello(struct addrinfo *ai, struct conn *c)
 			vrb("* TCP_NODELAY %s", val ? "set" : "not set");
 
 		/* Attempt to adjust socket timeout */
+		timeout.tv_sec  = (int)c->timeout;
+		timeout.tv_usec = (int)((c->timeout - timeout.tv_sec) * 1000000);
 		if (setsockopt(sd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) < 0)
 			warn("* Failed setting recv() timeout");
 		else
@@ -368,7 +370,7 @@ static char *parse_headers(struct conn *c)
 	return content;
 }
 
-FILE *uget(char *cmd, int nodelay, int strict, char *url, char *buf, size_t len)
+FILE *uget(char *cmd, double timeout, int nodelay, int strict, char *url, char *buf, size_t len)
 {
 	struct conn c = { 0 };
 	struct addrinfo *ai;
@@ -381,7 +383,8 @@ retry:
 	c.buf = buf;
 	c.len = len;
 	c.nodelay = nodelay;
-	c.strict = strict;
+	c.strict  = strict;
+	c.timeout = timeout;
 
 	dbg("* URL: %s", url);
 	if (split(url, &c))
@@ -472,7 +475,7 @@ static void head(char *buf, struct conn *c)
 
 static int usage(void)
 {
-	printf("Usage: uget [-nsvI] [-o FILE] URL\n");
+	printf("Usage: uget [-nsvI] [-o FILE] [-t SEC.MSEC] URL\n");
 	return 0;
 }
 
@@ -481,11 +484,12 @@ int main(int argc, char *argv[])
 	FILE *fp, *out = stdout;
 	char *buf, *fn = NULL;
 	char *cmd = "GET";
+	double timeout = 1.0;
 	int nodelay = 1;
 	int strict = 1;
 	int rc, c;
 
-	while ((c = getopt(argc, argv, "Ino:sv")) != EOF) {
+	while ((c = getopt(argc, argv, "Ino:st:v")) != EOF) {
 		switch (c) {
 		case 'n':
 			nodelay = 0;
@@ -498,6 +502,9 @@ int main(int argc, char *argv[])
 			break;
 		case 's':
 			strict = 0;
+			break;
+		case 't':
+			timeout = atof(optarg);
 			break;
 		case 'I':
 			cmd = "HEAD";
@@ -521,7 +528,7 @@ int main(int argc, char *argv[])
 	if (!buf)
 		err(1, "Failed allocating  (%d bytes) receive buffer", BUFSIZ);
 
-	fp = uget(cmd, nodelay, strict, argv[optind], buf, BUFSIZ);
+	fp = uget(cmd, timeout, nodelay, strict, argv[optind], buf, BUFSIZ);
 	if (fp) {
 		while (fgets(buf, BUFSIZ, fp))
 			fputs(buf, out);
