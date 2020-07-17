@@ -205,18 +205,16 @@ static int hello(struct addrinfo *ai, struct conn *c)
 		inet_ntop(rp->ai_family, &sin->sin_addr, c->host, sizeof(c->host));
 		vrb("* Trying %s:%d ...", c->host, ntohs(sin->sin_port));
 
-		/* Attempt to adjust recv timeout */
-		if (c->do_ssl)
-			timeout.tv_sec = 1;
 
+		/* Attempt to adjust socket timeout */
 		if (setsockopt(sd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) < 0)
-			warn("Failed setting recv() timeout");
+			warn("* Failed setting recv() timeout");
 		else
 			vrb("* SO_RCVTIMEO %ld.%ld sec set", timeout.tv_sec, timeout.tv_usec / 1000);
 		if (setsockopt(sd, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout)) < 0)
-			warn("Failed setting recv() timeout");
+			warn("* Failed setting send() timeout");
 		else
-			vrb("* SO_RCVTIMEO %ld.%ld sec set", timeout.tv_sec, timeout.tv_usec / 1000);
+			vrb("* SO_SNDTIMEO %ld.%ld sec set", timeout.tv_sec, timeout.tv_usec / 1000);
 
 		/* Attempt to connect to this address:port */
 		if (connect(sd, rp->ai_addr, rp->ai_addrlen) != -1)
