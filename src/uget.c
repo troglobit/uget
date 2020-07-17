@@ -196,6 +196,8 @@ static int hello(struct addrinfo *ai, struct conn *c)
 
 	for (rp = ai; rp != NULL; rp = rp->ai_next) {
 		struct timeval timeout = { 0, 200000 };
+		socklen_t len;
+		int val = 1;
 
 		sd = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
 		if (sd == -1)
@@ -205,6 +207,12 @@ static int hello(struct addrinfo *ai, struct conn *c)
 		inet_ntop(rp->ai_family, &sin->sin_addr, c->host, sizeof(c->host));
 		vrb("* Trying %s:%d ...", c->host, ntohs(sin->sin_port));
 
+		if (setsockopt(sd, IPPROTO_TCP, TCP_NODELAY, &val, sizeof(val)) < 0)
+			warn("* Failed %s TCP_NODELAY", val ? "setting" : "clearing");
+
+		len = sizeof(val);
+		if (!getsockopt(sd, IPPROTO_TCP, TCP_NODELAY, &val, &len))
+			vrb("* TCP_NODELAY %s", val ? "set" : "not set");
 
 		/* Attempt to adjust socket timeout */
 		if (setsockopt(sd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) < 0)
