@@ -44,7 +44,7 @@ struct conn {
 	uint16_t  port;
 	char     *location;
 
-	char      host[20];
+	char      host[INET6_ADDRSTRLEN];
 
 	int       redirect;
 	char      redirect_url[256];

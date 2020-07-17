@@ -63,7 +63,19 @@ static int split(char *url, struct conn *c)
 		ptr = url;
 	else
 		ptr += 3;
-	c->server = ptr;
+
+	/* Allow standard http://[IP:V6:ADDR]:PORT syntax */
+	if (*ptr == '[') {
+		ptr++;
+		c->server = ptr;
+		ptr = strchr(ptr, ']');
+		if (!ptr) {
+			errno = EINVAL;
+			return 1;
+		}
+		*ptr++ = 0;
+	} else
+		c->server = ptr;
 
 	ptr = strchr(ptr, ':');
 	if (ptr) {
@@ -106,7 +118,7 @@ static int nslookup(struct conn *c, struct addrinfo **result)
 	snprintf(service, sizeof(service), "%d", c->port);
 
 	memset(&hints, 0, sizeof(struct addrinfo));
-	hints.ai_family   = AF_INET;
+	hints.ai_family   = AF_UNSPEC;
 	hints.ai_socktype = SOCK_STREAM;
 	hints.ai_flags    = 0;
 	hints.ai_protocol = 0;
@@ -188,10 +200,18 @@ static int request(struct conn *c)
 	return 0;
 }
 
+static short getaddrinfo_port(struct addrinfo *ai)
+{
+    if (ai->ai_family == AF_INET)
+        return (((struct sockaddr_in*)ai->ai_addr)->sin_port);
+
+    return (((struct sockaddr_in6*)ai->ai_addr)->sin6_port);
+}
+
 static int hello(struct addrinfo *ai, struct conn *c)
 {
-	struct sockaddr_in *sin;
 	struct addrinfo *rp;
+	short port;
 	int sd;
 
 	for (rp = ai; rp != NULL; rp = rp->ai_next) {
@@ -203,9 +223,10 @@ static int hello(struct addrinfo *ai, struct conn *c)
 		if (sd == -1)
 			continue;
 
-		sin = (struct sockaddr_in *)rp->ai_addr;
-		inet_ntop(rp->ai_family, &sin->sin_addr, c->host, sizeof(c->host));
-		vrb("* Trying %s:%d ...", c->host, ntohs(sin->sin_port));
+		if (getnameinfo(rp->ai_addr, rp->ai_addrlen, c->host, sizeof(c->host), NULL, 0, NI_NUMERICHOST))
+			continue;
+		port = getaddrinfo_port(rp);
+		vrb("* Trying %s:%d ...", c->host, ntohs(port));
 
 		if (setsockopt(sd, IPPROTO_TCP, TCP_NODELAY, &val, sizeof(val)) < 0)
 			warn("* Failed %s TCP_NODELAY", val ? "setting" : "clearing");
@@ -228,7 +249,7 @@ static int hello(struct addrinfo *ai, struct conn *c)
 		if (connect(sd, rp->ai_addr, rp->ai_addrlen) != -1)
 			break;	/* Success */
 
-		warn("Failed connecting to %s:%d", c->host, ntohs(sin->sin_port));
+		warn("Failed connecting to %s:%d", c->host, ntohs(port));
 
 		close(sd);
 	}
@@ -236,7 +257,7 @@ static int hello(struct addrinfo *ai, struct conn *c)
 	if (rp == NULL)
 		return -1;
 
-	vrb("* Connected to %s (%s) port %d", c->server, c->host, ntohs(sin->sin_port));
+	vrb("* Connected to %s (%s) port %d", c->server, c->host, ntohs(port));
 	c->sd = sd;
 	if (c->do_ssl && ssl_open(c)) {
 		warn("Failed opening HTTPS connection to %s", c->server);
