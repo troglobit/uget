@@ -58,6 +58,8 @@ struct conn {
 	int       do_ssl;	/* http or https connection */
 	void     *ssl;
 	void     *ssl_ctx;
+
+	char     *errmsg;
 };
 
 extern int verbose;

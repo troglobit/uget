@@ -25,14 +25,13 @@
  */
 static int status(struct conn *c, int rc)
 {
-	char errmsg[80] = { 0 };
+	static char errmsg[80];
 
+	c->errmsg = NULL;
 	if (rc > 0)
 		return 0;
 
-	warnx("status: %d", rc);
 	rc = SSL_get_error(c->ssl, rc);
-	warnx("SSL_get_error => %d", rc);
 	switch (rc) {
 	case SSL_ERROR_SSL:	          /* rc = 1 */
 		errno = EPROTO;
@@ -49,7 +48,7 @@ static int status(struct conn *c, int rc)
 	case SSL_ERROR_SYSCALL:	          /* rc = 5 */
 		/* errno set already. */
 		if (errno != 0 && errno != ECONNRESET && errno != EPROTO)
-			snprintf(errmsg, sizeof(errmsg), "%s", strerror(errno));
+			c->errmsg = strerror(errno);
 		goto leave;
 
 	default:
@@ -57,12 +56,13 @@ static int status(struct conn *c, int rc)
 		break;
 	}
 
-	if (*errmsg) {
-		snprintf(errmsg, sizeof(errmsg), "%s, code %d",
+	if (c->errmsg) {
+		snprintf(errmsg, sizeof(errmsg), "SSL %s, code %d",
 			 ERR_reason_error_string(rc) ?: "unknown error", rc);
+		c->errmsg = errmsg;
 	}
+
 leave:
-	fprintf(stderr, "* %s\n", errmsg);
 	return -1;
 }
 
@@ -151,8 +151,10 @@ int ssl_open(struct conn *c)
 	SSL_CTX_set_verify(c->ssl_ctx, SSL_VERIFY_PEER, NULL);
 	SSL_CTX_set_verify_depth(c->ssl_ctx, 150);
 
-	if (status(c, SSL_connect(c->ssl)))
+	if (status(c, SSL_connect(c->ssl))) {
+		fprintf(stderr, "* Failed SSL connection: %s\n", c->errmsg);
 		return -1;
+	}
 
 	vrb("* SSL connection using %s / %s", SSL_get_cipher_version(c->ssl), SSL_get_cipher_name(c->ssl));
 
