@@ -22,13 +22,10 @@ before_install:
 #  - /tmp/tok/bin/uget -vv -I https://ipv6.test-ipv6.com/
 script:
   - ./configure --prefix=/ --without-ssl
-  - make clean
-  - make V=1 || cat config.h
+  - make V=1
   - ./src/uget -vv -I http://example.com
-  - make clean
   - ./configure --prefix=/
-  - make V=1 || cat config.h
-  - make check
+  - make V=1
   - DESTDIR=/tmp/tok make install-strip
   - tree /tmp/tok
   - ldd /tmp/tok/bin/uget
