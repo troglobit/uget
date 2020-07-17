@@ -148,7 +148,7 @@ int ssl_open(struct conn *c)
 	SSL_set1_host(c->ssl, c->server);
 	SSL_set_tlsext_host_name(c->ssl, c->server);
 
-	SSL_CTX_set_verify(c->ssl_ctx, SSL_VERIFY_PEER, NULL);
+	SSL_CTX_set_verify(c->ssl_ctx, c->strict ? SSL_VERIFY_PEER : SSL_VERIFY_NONE, NULL);
 	SSL_CTX_set_verify_depth(c->ssl_ctx, 150);
 
 	if (status(c, SSL_connect(c->ssl))) {

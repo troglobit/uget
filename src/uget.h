@@ -56,6 +56,7 @@ struct conn {
 	size_t    len;
 
 	int       do_ssl;	/* http or https connection */
+	int       strict;	/* certificate validation */
 	void     *ssl;
 	void     *ssl_ctx;
 

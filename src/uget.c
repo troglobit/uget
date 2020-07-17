@@ -368,7 +368,7 @@ static char *parse_headers(struct conn *c)
 	return content;
 }
 
-FILE *uget(char *cmd, char *url, char *buf, size_t len)
+FILE *uget(char *cmd, int strict, char *url, char *buf, size_t len)
 {
 	struct conn c = { 0 };
 	struct addrinfo *ai;
@@ -380,6 +380,7 @@ retry:
 	c.cmd = cmd;
 	c.buf = buf;
 	c.len = len;
+	c.strict = strict;
 
 	dbg("* URL: %s", url);
 	if (split(url, &c))
@@ -470,7 +471,7 @@ static void head(char *buf, struct conn *c)
 
 static int usage(void)
 {
-	printf("Usage: uget [-vI] [-o FILE] URL\n");
+	printf("Usage: uget [-svI] [-o FILE] URL\n");
 	return 0;
 }
 
@@ -479,15 +480,19 @@ int main(int argc, char *argv[])
 	FILE *fp, *out = stdout;
 	char *buf, *fn = NULL;
 	char *cmd = "GET";
+	int strict = 1;
 	int rc, c;
 
-	while ((c = getopt(argc, argv, "Io:v")) != EOF) {
+	while ((c = getopt(argc, argv, "Io:sv")) != EOF) {
 		switch (c) {
 		case 'v':
 			verbose++;
 			break;
 		case 'o':
 			fn = optarg;
+			break;
+		case 's':
+			strict = 0;
 			break;
 		case 'I':
 			cmd = "HEAD";
@@ -511,7 +516,7 @@ int main(int argc, char *argv[])
 	if (!buf)
 		err(1, "Failed allocating  (%d bytes) receive buffer", BUFSIZ);
 
-	fp = uget(cmd, argv[optind], buf, BUFSIZ);
+	fp = uget(cmd, strict, argv[optind], buf, BUFSIZ);
 	if (fp) {
 		while (fgets(buf, BUFSIZ, fp))
 			fputs(buf, out);
