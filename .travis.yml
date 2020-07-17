@@ -21,7 +21,6 @@ before_install:
 #  - /tmp/tok/bin/uget -vv -I http://ipv6.test-ipv6.com/
 #  - /tmp/tok/bin/uget -vv -I https://ipv6.test-ipv6.com/
 script:
-  - ./autogen.sh
   - ./configure --prefix=/ --without-ssl
   - make clean
   - make V=1 || cat config.h
