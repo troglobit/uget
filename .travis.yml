@@ -21,6 +21,7 @@ before_install:
 #  - /tmp/tok/bin/uget -vv -I http://ipv6.test-ipv6.com/
 #  - /tmp/tok/bin/uget -vv -I https://ipv6.test-ipv6.com/
 script:
+  - touch configure aclocal.m4 Makefile.in src/Makefile.in
   - ./configure --prefix=/ --without-ssl
   - make V=1
   - ./src/uget -vv -I http://example.com
