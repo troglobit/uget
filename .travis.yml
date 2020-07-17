@@ -17,6 +17,9 @@ before_install:
 # so we must customize the default build script to run ./autogen.sh
 # Try first to build without SSL to check for regressions, then run
 # all unit tests on a merecat with HTTPS enabled.
+# IPv6 not supported (yet) by Travis-CI
+#  - /tmp/tok/bin/uget -vv -I http://ipv6.test-ipv6.com/
+#  - /tmp/tok/bin/uget -vv -I https://ipv6.test-ipv6.com/
 script:
   - ./autogen.sh
   - ./configure --prefix=/ --without-ssl
@@ -31,6 +34,4 @@ script:
   - tree /tmp/tok
   - ldd /tmp/tok/bin/uget
   - /tmp/tok/bin/uget -h
-  - /tmp/tok/bin/uget -vv -I http://ipv6.test-ipv6.com/
-  - /tmp/tok/bin/uget -vv -I https://ipv6.test-ipv6.com/
   - /tmp/tok/bin/uget -vv -o foo http://www.examplecat.com
