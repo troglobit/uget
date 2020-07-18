@@ -99,7 +99,7 @@ int ssl_exit(struct conn *c)
 
 static int ssl_set_ca_location(struct conn *c)
 {
-	char *cafile = "default (override with SSL_CERT_DIR environment variable)";
+	char *cafile = "built-in defaults (override with SSL_CERT_DIR environment variable)";
 	int ret;
 
 	/* A user defined CA PEM bundle overrides any built-ins or fall-backs */
