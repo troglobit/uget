@@ -1,0 +1,75 @@
+.\"                                      Hey, EMACS: -*- nroff -*-
+.\" First parameter, NAME, should be all caps
+.\" Second parameter, SECTION, should be 1-8, maybe w/ subsection
+.\" other parameters are allowed: see man(7), man(1)
+.Dd Jul 19, 2020
+.\" Please adjust this date whenever revising the manpage.
+.Dt UGET 1 URM
+.Os
+.Sh NAME
+.Nm uget
+.Nd Small useless get-file-over-http program
+.Sh SYNOPSIS
+.Nm
+.Op Fl hInsvV
+.Op Fl c Ar CACERT
+.Op Fl o Ar FILE
+.Op Fl t Ar SEC.MSEC
+.Ar [URL]
+.Sh DESCRIPTION
+.Nm
+is an almost completely useless little program to fetch files over HTTP
+and HTTPS.  It works very much like
+.Xr curl 1 ,
+but only HTTP/1.1 supported, with a tiny subset of functions in
+comparison.
+.Sh OPTIONS
+.Pp
+.Bl -tag
+.It Fl c Ar CACERT
+Override built-in path to CA certificate to use to verify peer.
+.It Fl h
+Show built-in help text.
+.It Fl I
+Ask server for HEAD of location instead of GET whole content.  This
+means only the server headers.  Useful for debugging server setups,
+but may not be supported by all servers.
+.It Fl n
+Disable
+.Ql TCP_NODELAY
+socket option, enabled by default.
+.It Fl o Ar FILE
+Write output to FILE rather than stdout.  Highly useful if you fetch
+binary files, which may otherwise garble your terminal.  (Use the
+commands
+.Ql reset
+or
+.Ql stty sane
+to restore your terminal if you forget to use this option.)
+.It Fl s
+Disable strict certificate verification.
+.It Fl t Ar SEC.MSEC
+Set socket send/recv timeout in seconds and/or milliseconds.
+.It Fl v
+Verbose mode, use twice to enable debug messages.
+.It Fl V
+Show program name and version.
+.El
+.Pp
+The
+.Ar URL
+argument is optional only for options like
+.Fl h
+and
+.Fl V .
+.Sh SEE ALSO
+.Xr curl 1
+.Xr wget 1
+.Sh AUTHORS
+.Nm
+was created by
+.An Joachim Nilsson Aq Mt troglobit@gmail.com
+in 2020 for the sole purpose of refreshing his basic HTTP and OpenSSL
+knowledge for another more insidious project he was working on at the
+time.
+
