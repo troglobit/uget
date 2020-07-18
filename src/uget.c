@@ -476,15 +476,23 @@ static void head(char *buf, struct conn *c)
 
 static int usage(int rc)
 {
+#ifdef ENABLE_SSL
 	printf("Usage: %s [-hInsvV] [-c CACERT] [-o FILE] [-t SEC.MSEC] [URL]\n"
+#else
+	printf("Usage: %s [-hInvV] [-o FILE] [-t SEC.MSEC] [URL]\n"
+#endif
 	       "\n"
 	       "Options:\n"
+#ifdef ENABLE_SSL
 	       "  -c CACERT    Override built-in path to CA certificate to use to verify peer\n"
+#endif
 	       "  -h           This help text\n"
 	       "  -I           Ask server for HEAD of location instead of GET whole content\n"
 	       "  -n           Disable TCP_NODELAY\n"
 	       "  -o FILE      Write output to FILE rather than stdout\n"
+#ifdef ENABLE_SSL
 	       "  -s           Disable strict certificate validation\n"
+#endif
 	       "  -t SEC.MSEC  Set socket send/recv timeout\n"
 	       "  -v           Verbose mode, use twice to enable debug messages\n"
 	       "  -V           Show program name and version\n"
@@ -511,9 +519,11 @@ int main(int argc, char *argv[])
 
 	while ((c = getopt(argc, argv, "c:hIno:st:vV")) != EOF) {
 		switch (c) {
+#ifdef ENABLE_SSL
 		case 'c':
 			cacert = optarg;
 			break;
+#endif
 		case 'I':
 			cmd = "HEAD";
 			break;
@@ -525,9 +535,11 @@ int main(int argc, char *argv[])
 		case 'o':
 			fn = optarg;
 			break;
+#ifdef ENABLE_SSL
 		case 's':
 			strict = 0;
 			break;
+#endif
 		case 't':
 			timeout = atof(optarg);
 			break;
