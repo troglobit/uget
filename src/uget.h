@@ -66,5 +66,6 @@ struct conn {
 };
 
 extern int verbose;
+extern char *cacert;
 
 #endif /* UGET_H_ */

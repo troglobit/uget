@@ -19,6 +19,7 @@
 #include "uget.h"
 
 int verbose;
+char *cacert;
 
 static void head(char *buf, struct conn *c);
 
@@ -475,7 +476,7 @@ static void head(char *buf, struct conn *c)
 
 static int usage(void)
 {
-	printf("Usage: uget [-nsvI] [-o FILE] [-t SEC.MSEC] URL\n");
+	printf("Usage: uget [-nsvI] [-c CACERT] [-o FILE] [-t SEC.MSEC] URL\n");
 	return 0;
 }
 
@@ -489,8 +490,11 @@ int main(int argc, char *argv[])
 	int strict = 1;
 	int rc, c;
 
-	while ((c = getopt(argc, argv, "Ino:st:v")) != EOF) {
+	while ((c = getopt(argc, argv, "c:Ino:st:v")) != EOF) {
 		switch (c) {
+		case 'c':
+			cacert = optarg;
+			break;
 		case 'n':
 			nodelay = 0;
 			break;

@@ -102,13 +102,12 @@ static int ssl_set_ca_location(struct conn *c)
 	char *cafile = "default (override with SSL_CERT_DIR environment variable)";
 	int ret;
 
-#if 0 // XXX: later
 	/* A user defined CA PEM bundle overrides any built-ins or fall-backs */
-	if (ca_trust_file) {
-		ret = SSL_CTX_load_verify_locations(c->ssl_ctx, ca_trust_file, NULL);
+	if (cacert) {
+		ret = SSL_CTX_load_verify_locations(c->ssl_ctx, cacert, NULL);
 		goto done;
 	}
-#endif
+
 	ret = SSL_CTX_set_default_verify_paths(c->ssl_ctx);
 	if (ret < 1) {
 		cafile = CAFILE1;
@@ -118,7 +117,7 @@ static int ssl_set_ca_location(struct conn *c)
 		cafile = CAFILE2;
 		ret = SSL_CTX_load_verify_locations(c->ssl_ctx, cafile, NULL);
 	}
-//done:
+done:
 	if (ret < 1)
 		return 1;
 
