@@ -474,32 +474,52 @@ static void head(char *buf, struct conn *c)
 	*ptr = ':';
 }
 
-static int usage(void)
+static int usage(int rc)
 {
-	printf("Usage: uget [-nsvI] [-c CACERT] [-o FILE] [-t SEC.MSEC] URL\n");
-	return 0;
+	printf("Usage: %s [-nsvI] [-c CACERT] [-o FILE] [-t SEC.MSEC] URL\n"
+	       "\n"
+	       "Options:\n"
+	       "  -c CACERT    Override built-in path to CA certificate to use to verify peer\n"
+	       "  -h           This help text\n"
+	       "  -I           Ask server for HEAD of location instead of GET whole content\n"
+	       "  -n           Disable TCP_NODELAY\n"
+	       "  -o FILE      Write output to FILE rather than stdout\n"
+	       "  -s           Disable strict certificate validation\n"
+	       "  -t SEC.MSEC  Set socket send/recv timeout\n"
+	       "  -v           Verbose mode, use twice to enable debug messages\n"
+	       "\n"
+	       "Copyright (c) 2019-2020  Joachim Nilsson <troglobit@gmail.com>\n"
+	       "\n"
+	       "Permission to use, copy, modify, and/or distribute this software for any\n"
+	       "purpose with or without fee is hereby granted, provided that the above\n"
+	       "copyright notice and this permission notice appear in all copies.\n",
+	       PACKAGE_NAME);
+
+	return rc;
 }
 
 int main(int argc, char *argv[])
 {
 	FILE *fp, *out = stdout;
 	char *buf, *fn = NULL;
-	char *cmd = "GET";
 	double timeout = 1.0;
+	char *cmd = "GET";
 	int nodelay = 1;
 	int strict = 1;
 	int rc, c;
 
-	while ((c = getopt(argc, argv, "c:Ino:st:v")) != EOF) {
+	while ((c = getopt(argc, argv, "c:hIno:st:v")) != EOF) {
 		switch (c) {
 		case 'c':
 			cacert = optarg;
 			break;
+		case 'I':
+			cmd = "HEAD";
+			break;
+		case 'h':
+			return usage(0);
 		case 'n':
 			nodelay = 0;
-			break;
-		case 'v':
-			verbose++;
 			break;
 		case 'o':
 			fn = optarg;
@@ -510,16 +530,16 @@ int main(int argc, char *argv[])
 		case 't':
 			timeout = atof(optarg);
 			break;
-		case 'I':
-			cmd = "HEAD";
+		case 'v':
+			verbose++;
 			break;
 		default:
-			return usage();
+			return usage(1);
 		}
 	}
 
 	if (argc <= optind)
-		return usage();
+		return usage(1);
 
 	if (fn) {
 		out = fopen(fn, "w");
