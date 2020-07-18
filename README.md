@@ -10,7 +10,7 @@ Options:
   -c CACERT    Override built-in path to CA certificate to use to verify peer
   -h           This help text
   -I           Ask server for HEAD of location instead of GET whole content
-  -n           Disable TCP_NODELAY
+  -n           Disable TCP_NODELAY socket option
   -o FILE      Write output to FILE rather than stdout
   -s           Disable strict certificate validation
   -t SEC.MSEC  Set socket send/recv timeout

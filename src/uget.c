@@ -488,7 +488,7 @@ static int usage(int rc)
 #endif
 	       "  -h           This help text\n"
 	       "  -I           Ask server for HEAD of location instead of GET whole content\n"
-	       "  -n           Disable TCP_NODELAY\n"
+	       "  -n           Disable TCP_NODELAY socket option\n"
 	       "  -o FILE      Write output to FILE rather than stdout\n"
 #ifdef ENABLE_SSL
 	       "  -s           Disable strict certificate validation\n"
