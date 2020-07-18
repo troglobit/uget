@@ -45,7 +45,7 @@ to debug HTTP connections, then `curl` is definitely for you!
 Origin & References
 -------------------
 
-The `uget` project is the development arena for the `ssdp-scan` tool in
+The `uget` project shares most of its code with the `ssdp-scan` tool in
 the [ssdp-responder][2] project.  You may also find an equally stupid
 web server here.  Please don't use it for anything remotely production
 oriented!
