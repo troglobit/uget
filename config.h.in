@@ -1,9 +1,9 @@
 /* config.h.in.  Generated from configure.ac by autoheader.  */
 
-/* First fallback location for Open/LibreSSL and GnuTLS trust db */
+/* First fallback location for Open/LibreSSL trust db */
 #undef CAFILE1
 
-/* Second location for Open/LibreSSL and GnuTLS trust db */
+/* Second location for Open/LibreSSL trust db */
 #undef CAFILE2
 
 /* Enable HTTPS support */
@@ -23,23 +23,14 @@
 /* Define to 1 if you have the `ssl' library (-lssl). */
 #undef HAVE_LIBSSL
 
-/* Define to 1 if you have the <openssl/crypto.h> header file. */
-#undef HAVE_OPENSSL_CRYPTO_H
-
 /* Define to 1 if you have the <openssl/err.h> header file. */
 #undef HAVE_OPENSSL_ERR_H
-
-/* Define to 1 if you have the <openssl/pem.h> header file. */
-#undef HAVE_OPENSSL_PEM_H
 
 /* Define to 1 if you have the <openssl/ssl.h> header file. */
 #undef HAVE_OPENSSL_SSL_H
 
-/* Define to 1 if you have the <openssl/tls1.h> header file. */
-#undef HAVE_OPENSSL_TLS1_H
-
-/* Define to 1 if you have the <openssl/x509.h> header file. */
-#undef HAVE_OPENSSL_X509_H
+/* Define to 1 if you have the <openssl/x509v3.h> header file. */
+#undef HAVE_OPENSSL_X509V3_H
 
 /* Name of package */
 #undef PACKAGE

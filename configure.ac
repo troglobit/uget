@@ -1,4 +1,4 @@
-AC_INIT([uget], [1.0-beta1],,, [https://github.com/troglobit/uget/])
+AC_INIT([uget], [1.0],,, [https://github.com/troglobit/uget/])
 AC_CONFIG_AUX_DIR(aux)
 AM_INIT_AUTOMAKE([1.11 foreign])
 AM_SILENT_RULES([yes])
@@ -25,7 +25,7 @@ AS_IF([test "x$with_ssl" != "xno"], [
 	AC_CHECK_LIB([ssl], [SSL_library_init], [],
 		AC_CHECK_LIB([ssl], [OPENSSL_init_ssl], [],
 		AC_MSG_ERROR([*** SSL library (OpenSSL) not found!])))
-	AC_CHECK_HEADERS([openssl/crypto.h openssl/x509.h openssl/pem.h openssl/ssl.h openssl/tls1.h openssl/err.h], [],
+	AC_CHECK_HEADERS([openssl/x509v3.h openssl/ssl.h openssl/err.h], [],
 		AC_MSG_ERROR([*** Cannot find required header files!]), [
 			#include <openssl/conf.h>
 		])
@@ -51,8 +51,7 @@ AS_IF([test "x$with_ssl" != "xno"], [
 	AC_DEFINE([ENABLE_SSL], [1], [Enable HTTPS support])
 ])
 
-# By default we rely on the built-in locations of Open/LibreSSL and GnuTLS,
-# on error we fall back to these two locations
+# By default we rely on built-in locations of Open/LibreSSL, on error we fall back to these two locations
 # For more excellent information on the topic, see this blog post
 #   https://www.happyassassin.net/2015/01/12/a-note-about-ssltls-trusted-certificate-stores-and-platforms/
 CAFILE1="/etc/ssl/certs/ca-certificates.crt"
@@ -66,8 +65,8 @@ darwin*)
    ;;
 esac
 
-AC_DEFINE_UNQUOTED([CAFILE1], "$CAFILE1", [First fallback location for Open/LibreSSL and GnuTLS trust db])
-AC_DEFINE_UNQUOTED([CAFILE2], "$CAFILE2", [Second location for Open/LibreSSL and GnuTLS trust db])
+AC_DEFINE_UNQUOTED([CAFILE1], "$CAFILE1", [First fallback location for Open/LibreSSL trust db])
+AC_DEFINE_UNQUOTED([CAFILE2], "$CAFILE2", [Second location for Open/LibreSSL trust db])
 
 AM_CONDITIONAL([ENABLE_SSL], test "x$with_ssl" = "xyes")
 
