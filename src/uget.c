@@ -51,19 +51,19 @@ static int split(char *url, struct conn *c)
 	if (!url)
 		return 1;
 
-	/* Figure out protocol to use */
-	if (!strncmp(url, "http://", 7))
-		c->do_ssl = 0;
-	else if (!strncmp(url, "https://", 8))
-		c->do_ssl = 1;
-	else
-		return 1;
-
 	ptr = strstr(url, "://");
-	if (!ptr)
-		ptr = url;
-	else
+	if (ptr) {
+		/* Figure out protocol to use */
+		if (!strncmp(url, "http://", 7))
+			c->do_ssl = 0;
+		else if (!strncmp(url, "https://", 8))
+			c->do_ssl = 1;
+		else
+			return 1; /* unsupported atm. */
+
 		ptr += 3;
+	} else
+		ptr = url;
 
 	/* Allow standard http://[IP:V6:ADDR]:PORT syntax */
 	if (*ptr == '[') {
