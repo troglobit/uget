@@ -156,7 +156,7 @@ am__uninstall_files_from_dir = { \
 man1dir = $(mandir)/man1
 am__installdirs = "$(DESTDIR)$(man1dir)" "$(DESTDIR)$(docdir)"
 NROFF = nroff
-MANS = $(man1_MANS)
+MANS = $(dist_man1_MANS)
 DATA = $(doc_DATA)
 RECURSIVE_CLEAN_TARGETS = mostlyclean-recursive clean-recursive	\
   distclean-recursive maintainer-clean-recursive
@@ -188,10 +188,10 @@ ETAGS = etags
 CTAGS = ctags
 CSCOPE = cscope
 DIST_SUBDIRS = $(SUBDIRS)
-am__DIST_COMMON = $(srcdir)/Makefile.in $(srcdir)/config.h.in \
-	$(top_srcdir)/aux/compile $(top_srcdir)/aux/install-sh \
-	$(top_srcdir)/aux/missing aux/compile aux/depcomp \
-	aux/install-sh aux/missing
+am__DIST_COMMON = $(dist_man1_MANS) $(srcdir)/Makefile.in \
+	$(srcdir)/config.h.in $(top_srcdir)/aux/compile \
+	$(top_srcdir)/aux/install-sh $(top_srcdir)/aux/missing \
+	aux/compile aux/depcomp aux/install-sh aux/missing
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
 distdir = $(PACKAGE)-$(VERSION)
 top_distdir = $(distdir)
@@ -325,9 +325,9 @@ top_build_prefix = @top_build_prefix@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
 SUBDIRS = src
-EXTRA_DIST = README.md LICENSE
 doc_DATA = README.md LICENSE
-man1_MANS = uget.1
+EXTRA_DIST = README.md LICENSE
+dist_man1_MANS = uget.1
 all: config.h
 	$(MAKE) $(AM_MAKEFLAGS) all-recursive
 
@@ -380,9 +380,9 @@ $(srcdir)/config.h.in:  $(am__configure_deps)
 
 distclean-hdr:
 	-rm -f config.h stamp-h1
-install-man1: $(man1_MANS)
+install-man1: $(dist_man1_MANS)
 	@$(NORMAL_INSTALL)
-	@list1='$(man1_MANS)'; \
+	@list1='$(dist_man1_MANS)'; \
 	list2=''; \
 	test -n "$(man1dir)" \
 	  && test -n "`echo $$list1$$list2`" \
@@ -416,7 +416,7 @@ install-man1: $(man1_MANS)
 
 uninstall-man1:
 	@$(NORMAL_UNINSTALL)
-	@list='$(man1_MANS)'; test -n "$(man1dir)" || exit 0; \
+	@list='$(dist_man1_MANS)'; test -n "$(man1dir)" || exit 0; \
 	files=`{ for i in $$list; do echo "$$i"; done; \
 	} | sed -e 's,.*/,,;h;s,.*\.,,;s,^[^1][0-9a-z]*$$,1,;x' \
 	      -e 's,\.[0-9a-z]*$$,,;$(transform);G;s,\n,.,'`; \

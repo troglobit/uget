@@ -1,7 +1,7 @@
-SUBDIRS    = src
-EXTRA_DIST = README.md LICENSE
-doc_DATA   = README.md LICENSE
-man1_MANS  = uget.1
+SUBDIRS        = src
+EXTRA_DIST     = README.md LICENSE
+doc_DATA       = README.md LICENSE
+dist_man1_MANS = uget.1
 
 ## Generate .deb package
 package:
