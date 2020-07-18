@@ -1,0 +1,5 @@
+uget (1.0) stable; urgency=low
+
+  * Initial Debian packaging.
+
+ -- Joachim Nilsson <troglobit@gmail.com>  Sat, 18 Jul 2020 12:57:00 +0200

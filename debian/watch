@@ -1,0 +1,3 @@
+version=3
+opts=filenamemangle=s/.+\/v?(\d\S*)\.tar\.gz/uget-$1\.tar\.gz/ \
+  https://github.com/troglobit/uget/releases .*/uget-?(\d\S*)\.tar\.gz

@@ -1,0 +1,21 @@
+Source: uget
+Section: net
+Priority: optional
+Maintainer: Joachim Nilsson <troglobit@gmail.com>
+Homepage: https://github.com/troglobit/uget
+Build-Depends: debhelper (>= 10), libssl-dev (>= 1.1.1)
+Standards-Version: 4.3.0
+Vcs-Git: https://github.com/troglobit/uget.git
+Vcs-Browser: https://github.com/troglobit/uget/commits/
+
+Package: uget
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: Small almost useless get-file-over-http program
+ uget is an almost completely useless little program to fetch files over
+ HTTP and HTTPS.  It works very much like curl(1), but only HTTP/1.1
+ supported, with a tiny subset of functions in comparison.
+ .
+ The most prominent feature, apart from being small and still supporting
+ HTTPS, is the HTTP 301 redirect support, e.g. automatic redirect from
+ HTTP to HTTPS.
