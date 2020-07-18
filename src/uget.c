@@ -476,7 +476,7 @@ static void head(char *buf, struct conn *c)
 
 static int usage(int rc)
 {
-	printf("Usage: %s [-nsvI] [-c CACERT] [-o FILE] [-t SEC.MSEC] URL\n"
+	printf("Usage: %s [-hInsvV] [-c CACERT] [-o FILE] [-t SEC.MSEC] [URL]\n"
 	       "\n"
 	       "Options:\n"
 	       "  -c CACERT    Override built-in path to CA certificate to use to verify peer\n"
@@ -487,6 +487,7 @@ static int usage(int rc)
 	       "  -s           Disable strict certificate validation\n"
 	       "  -t SEC.MSEC  Set socket send/recv timeout\n"
 	       "  -v           Verbose mode, use twice to enable debug messages\n"
+	       "  -V           Show program name and version\n"
 	       "\n"
 	       "Copyright (c) 2019-2020  Joachim Nilsson <troglobit@gmail.com>\n"
 	       "\n"
@@ -508,7 +509,7 @@ int main(int argc, char *argv[])
 	int strict = 1;
 	int rc, c;
 
-	while ((c = getopt(argc, argv, "c:hIno:st:v")) != EOF) {
+	while ((c = getopt(argc, argv, "c:hIno:st:vV")) != EOF) {
 		switch (c) {
 		case 'c':
 			cacert = optarg;
@@ -533,6 +534,9 @@ int main(int argc, char *argv[])
 		case 'v':
 			verbose++;
 			break;
+		case 'V':
+			printf("%s v%s\n", PACKAGE_NAME, PACKAGE_VERSION);
+			return 0;
 		default:
 			return usage(1);
 		}
