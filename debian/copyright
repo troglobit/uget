@@ -4,11 +4,11 @@ Upstream-Contact: troglobit@gmail.com
 Source: https://github.com/troglobit/uget
 
 Files: *
-Copyright: 2019-2020 Joachim Nilsson <troglobit@gmail.!com>
+Copyright: 2019-2022 Joachim Wiberg <troglobit@gmail.!com>
 License: ISC
 
 Files: debian/*
-Copyright: 2020 Joachim Nilsson <troglobit@gmail.com>
+Copyright: 2022 Joachim Wiberg <troglobit@gmail.com>
 License: ISC
 
 License: ISC

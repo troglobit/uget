@@ -1,7 +1,7 @@
 Source: uget
 Section: net
 Priority: optional
-Maintainer: Joachim Nilsson <troglobit@gmail.com>
+Maintainer: Joachim Wiberg <troglobit@gmail.com>
 Homepage: https://github.com/troglobit/uget
 Build-Depends: debhelper (>= 10), libssl-dev (>= 1.1.1)
 Standards-Version: 4.3.0

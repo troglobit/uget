@@ -1,6 +1,6 @@
 /* Really stupid get-file-over-http program/function
  *
- * Copyright (c) 2019-2020  Joachim Nilsson <troglobit@gmail.com>
+ * Copyright (c) 2019-2022  Joachim Wiberg <troglobit@gmail.com>
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -497,7 +497,7 @@ static int usage(int rc)
 	       "  -v           Verbose mode, use twice to enable debug messages\n"
 	       "  -V           Show program name and version\n"
 	       "\n"
-	       "Copyright (c) 2019-2020  Joachim Nilsson <troglobit@gmail.com>\n"
+	       "Copyright (c) 2019-2022  Joachim Wiberg <troglobit@gmail.com>\n"
 	       "\n"
 	       "Permission to use, copy, modify, and/or distribute this software for any\n"
 	       "purpose with or without fee is hereby granted, provided that the above\n"
