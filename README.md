@@ -29,8 +29,8 @@ Caveat
 ------
 
 Unless you're here for something really small and generally useless,
-albeit with a *very liberal* [Open Source license][1], you really want
-something useful.  Like:
+albeit with a *very liberal* [Open Source license][1], you will want
+something else instead, something useful.  Like:
 
   * [wget](https://www.gnu.org/software/wget/), or
   * [curl](https://curl.haxx.se/)
