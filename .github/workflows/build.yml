@@ -1,0 +1,45 @@
+name: Bob the Builder
+
+# Run on all branches, including all pull requests, except the 'dev'
+# branch since that's where we run Coverity Scan (limited tokens/day)
+on:
+  push:
+    branches:
+      - '**'
+      - '!dev'
+  pull_request:
+    branches:
+      - '**'
+
+jobs:
+  build:
+    name: ${{ matrix.compiler }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        compiler: [gcc, clang]
+      fail-fast: false
+    env:
+      MAKEFLAGS: -j3
+      CC: ${{ matrix.compiler }}
+    steps:
+      - name: Install dependencies
+        run: |
+          sudo apt-get -y update
+          sudo apt-get -y install tree libssl-dev
+      - uses: actions/checkout@v2
+      - name: 1/2 Without OpenSSL
+        run: |
+          touch configure aclocal.m4 Makefile.in src/Makefile.in
+          ./configure --prefix=/ --without-ssl
+          make V=1
+          ./src/uget -vv -I http://example.com
+      - name: 2/2 With OpenSSL
+        run: |
+          ./configure --prefix=/
+          make V=1
+          DESTDIR=/tmp/tok make install-strip
+          tree /tmp/tok
+          ldd /tmp/tok/bin/uget
+          /tmp/tok/bin/uget -h
+          /tmp/tok/bin/uget -vv -o foo http://www.examplecat.com
