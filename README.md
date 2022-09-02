@@ -1,6 +1,6 @@
 Almost Useless get-file-over-http Program
 ==========================================================
-[![License Badge][]][License] [![Travis Status][]][Travis]
+[![License Badge][]][License] [![GitHub Status][]][GitHub]
 
 
 ```
@@ -57,5 +57,5 @@ Take care
 [2]: https://github.com/troglobit/ssdp-responder/
 [License]:         https://en.wikipedia.org/wiki/ISC_license
 [License Badge]:   https://img.shields.io/badge/License-ISC-blue.svg
-[Travis]:          https://travis-ci.org/troglobit/uget
-[Travis Status]:   https://travis-ci.org/troglobit/uget.png?branch=master
+[GitHub]:          https://github.com/troglobit/uget/actions/workflows/build.yml/
+[GitHub Status]:   https://github.com/troglobit/uget/actions/workflows/build.yml/badge.svg
