@@ -26,7 +26,7 @@ release-hook:
 	fi
 
 ## Target to run when building a release
-release: release-hook distcheck package
+release: release-hook distcheck
 	@for file in $(DIST_ARCHIVES); do	\
 		md5sum $$file > ../$$file.md5;	\
 	done
