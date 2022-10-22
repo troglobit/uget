@@ -295,10 +295,13 @@ static char *bufgets(char *buf)
 
 static char *token(char **buf)
 {
-	char *ptr = *buf;
+	char *ptr;
 	char *p;
 
-	if (!buf || !ptr)
+	if (!buf)
+		return NULL;
+	ptr = *buf;
+	if (!ptr)
 		return NULL;
 
 	p = strpbrk(ptr, " \t\r\n");
