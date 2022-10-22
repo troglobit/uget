@@ -182,7 +182,7 @@ static int request(struct conn *c)
 	ssize_t num;
 	size_t len;
 
-	len = snprintf(c->buf, c->len, "%s /%s HTTP/1.1\r\n"
+	len = snprintf(c->buf, c->len, "%s /%s HTTP/1.0\r\n"
 		       "Host: %s\r\n"
 		       "User-Agent: %s/%s\r\n"
 		       "Accept: */*\r\n"
