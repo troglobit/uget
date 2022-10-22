@@ -1,4 +1,4 @@
-AC_INIT([uget], [1.0],,, [https://github.com/troglobit/uget/])
+AC_INIT([uget], [1.1],,, [https://github.com/troglobit/uget/])
 AC_CONFIG_AUX_DIR(aux)
 AM_INIT_AUTOMAKE([1.11 foreign])
 AM_SILENT_RULES([yes])
