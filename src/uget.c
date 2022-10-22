@@ -328,7 +328,7 @@ static char *parse_headers(struct conn *c)
 		warnx("max header size");
 		return NULL;
 	}
-	content[2] = 0;
+	*content = 0;
 	content += 4;
 	c->len  -= content - c->buf;
 
